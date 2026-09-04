@@ -11,7 +11,14 @@ public record TaskDefinition(
         GateType entryGate,
         GateType exitGate,
         int maximumAttempts,
-        Duration timeout) {
+        Duration timeout,
+        String fallbackTaskId) {
+
+    public TaskDefinition(String id, TaskType type, Set<String> dependencies,
+                          GateType entryGate, GateType exitGate,
+                          int maximumAttempts, Duration timeout) {
+        this(id, type, dependencies, entryGate, exitGate, maximumAttempts, timeout, null);
+    }
 
     public TaskDefinition {
         if (id == null || id.isBlank()) {
@@ -31,6 +38,8 @@ public record TaskDefinition(
         if (timeout.isZero() || timeout.isNegative()) {
             throw new IllegalArgumentException("Task timeout must be positive");
         }
+        if (id.equals(fallbackTaskId)) {
+            throw new IllegalArgumentException("Task cannot be its own fallback: " + id);
+        }
     }
 }
-

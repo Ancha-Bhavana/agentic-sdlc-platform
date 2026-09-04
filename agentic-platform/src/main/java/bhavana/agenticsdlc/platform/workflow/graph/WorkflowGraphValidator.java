@@ -20,6 +20,11 @@ public final class WorkflowGraphValidator {
                 .filter(dependency -> !ids.contains(dependency))
                 .forEach(dependency -> violations.add(
                         "Task %s has missing dependency %s".formatted(task.id(), dependency))));
+        graph.tasks().values().stream()
+                .filter(task -> task.fallbackTaskId() != null)
+                .filter(task -> !ids.contains(task.fallbackTaskId()))
+                .forEach(task -> violations.add(
+                        "Task %s has missing fallback %s".formatted(task.id(), task.fallbackTaskId())));
         if (violations.isEmpty()) {
             detectCycles(graph.tasks(), violations);
         }
@@ -62,4 +67,3 @@ public final class WorkflowGraphValidator {
 
     private enum VisitState { VISITING, VISITED }
 }
-

@@ -55,9 +55,18 @@ class WorkflowGraphTest {
                 .hasMessageContaining("Duplicate task id");
     }
 
+    @Test
+    void rejectsMissingFallbackTask() {
+        TaskDefinition task = new TaskDefinition("implementation", TaskType.IMPLEMENTATION, Set.of(),
+                GateType.NONE, GateType.NONE, 1, Duration.ofMinutes(1), "offline-provider");
+
+        assertThatThrownBy(() -> new WorkflowGraph(List.of(task)))
+                .isInstanceOf(InvalidWorkflowGraphException.class)
+                .hasMessageContaining("missing fallback offline-provider");
+    }
+
     private TaskDefinition task(String id, Set<String> dependencies) {
         return new TaskDefinition(id, TaskType.IMPLEMENTATION, dependencies,
                 GateType.NONE, GateType.NONE, 2, Duration.ofMinutes(2));
     }
 }
-
