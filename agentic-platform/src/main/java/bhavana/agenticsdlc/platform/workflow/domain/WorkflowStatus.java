@@ -19,7 +19,7 @@ public enum WorkflowStatus {
             SUBMITTED, EnumSet.of(RUNNING, CANCELLED, FAILED),
             RUNNING, EnumSet.of(AWAITING_CLARIFICATION, AWAITING_APPROVAL, COMPLETED, FAILED, CANCELLED),
             AWAITING_CLARIFICATION, EnumSet.of(RUNNING, REJECTED, CANCELLED),
-            AWAITING_APPROVAL, EnumSet.of(COMPLETED, REJECTED, CANCELLED),
+            AWAITING_APPROVAL, EnumSet.of(RUNNING, COMPLETED, REJECTED, CANCELLED),
             REJECTED, EnumSet.of(ROLLED_BACK),
             FAILED, EnumSet.of(ROLLED_BACK),
             CANCELLED, EnumSet.of(ROLLED_BACK)
@@ -39,4 +39,3 @@ public enum WorkflowStatus {
         }
     }
 }
-

@@ -25,5 +25,11 @@ public class ContextArtifactEntity {
 
     protected ContextArtifactEntity() {
     }
-}
 
+    public UUID getId() { return id; } public UUID getWorkflowId() { return workflowId; }
+    public int getWorkflowRevision() { return workflowRevision; } public String getArtifactKey() { return artifactKey; }
+    public long getArtifactVersion() { return artifactVersion; } public String getProducerTaskId() { return producerTaskId; }
+    public String getSchemaVersion() { return schemaVersion; } public String getContentHash() { return contentHash; }
+    public String getInputHashesJson() { return inputHashesJson; } public String getContentJson() { return contentJson; }
+    public Instant getCreatedAt() { return createdAt; }
+}

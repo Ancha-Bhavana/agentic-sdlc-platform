@@ -26,3 +26,30 @@ macOS or Linux:
 ./mvnw clean verify
 ```
 
+## Run the orchestrator
+
+The orchestrator uses the deterministic model provider by default, so no model API key is required. Start the included PostgreSQL container, set the matching application credentials, and run the packaged application:
+
+```powershell
+docker compose up -d postgres
+
+$env:AGENTIC_SDLC_DATABASE_URL = "jdbc:postgresql://localhost:5432/agentic_sdlc"
+$env:AGENTIC_SDLC_DATABASE_USERNAME = "agentic_sdlc"
+$env:AGENTIC_SDLC_DATABASE_PASSWORD = "agentic_sdlc_local"
+java -jar agentic-platform/target/agentic-platform-0.1.0-SNAPSHOT.jar
+```
+
+If port `5432` is already occupied, copy `.env.example` to `.env`, change `POSTGRES_PORT`, and use the same port in `AGENTIC_SDLC_DATABASE_URL`. Existing PostgreSQL volumes retain the credentials used when they were first created; run `docker compose down -v` only when you intentionally want to delete local database data and recreate it with the current credentials.
+
+To exercise the real OpenAI provider, set these variables before startup:
+
+```powershell
+$env:AGENTIC_SDLC_LLM_PROVIDER = "openai"
+$env:OPENAI_API_KEY = "your-key"
+$env:AGENTIC_SDLC_LLM_MODEL = "gpt-5.4" # optional
+java -jar agentic-platform/target/agentic-platform-0.1.0-SNAPSHOT.jar
+```
+
+The OpenAI endpoint defaults to `https://api.openai.com/v1/responses` and can be changed with `AGENTIC_SDLC_LLM_ENDPOINT`. OpenAPI JSON is available at `/v3/api-docs`, and Swagger UI is available at `/swagger-ui.html`.
+
+Local HTTP Basic users are `operator`, `approver`, and `release-approver`. Their passwords default to `operator-local`, `approver-local`, and `release-local`; override them with `AGENTIC_SDLC_OPERATOR_PASSWORD`, `AGENTIC_SDLC_APPROVER_PASSWORD`, and `AGENTIC_SDLC_RELEASE_PASSWORD` outside local evaluation.

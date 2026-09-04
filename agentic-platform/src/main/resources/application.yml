@@ -13,3 +13,15 @@ management:
   endpoints.web.exposure.include: health,info,prometheus
   endpoint.health.probes.enabled: true
 
+agentic-sdlc:
+  model:
+    provider: ${AGENTIC_SDLC_LLM_PROVIDER:deterministic}
+    endpoint: ${AGENTIC_SDLC_LLM_ENDPOINT:https://api.openai.com/v1/responses}
+    model: ${AGENTIC_SDLC_LLM_MODEL:gpt-5.4}
+    api-key: ${OPENAI_API_KEY:}
+  security:
+    operator-password: ${AGENTIC_SDLC_OPERATOR_PASSWORD:operator-local}
+    approver-password: ${AGENTIC_SDLC_APPROVER_PASSWORD:approver-local}
+    release-password: ${AGENTIC_SDLC_RELEASE_PASSWORD:release-local}
+  repository:
+    approved-root: ${AGENTIC_SDLC_APPROVED_REPOSITORY_ROOT:.}
