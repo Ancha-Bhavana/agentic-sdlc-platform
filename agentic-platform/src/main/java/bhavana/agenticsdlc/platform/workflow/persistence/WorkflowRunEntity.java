@@ -49,6 +49,18 @@ public class WorkflowRunEntity {
         updatedAt = now;
     }
 
+    public void beginRevision(int revision, Instant now) {
+        if (revision != currentRevision + 1) {
+            throw new IllegalArgumentException("Workflow revision must increase by one");
+        }
+        if (status != WorkflowStatus.RUNNING && status != WorkflowStatus.AWAITING_CLARIFICATION) {
+            throw new IllegalStateException("Workflow cannot be replanned from " + status);
+        }
+        currentRevision = revision;
+        status = WorkflowStatus.RUNNING;
+        updatedAt = now;
+    }
+
     public UUID getId() { return id; }
     public String getCorrelationId() { return correlationId; }
     public WorkflowStatus getStatus() { return status; }
@@ -57,4 +69,3 @@ public class WorkflowRunEntity {
     public Instant getUpdatedAt() { return updatedAt; }
     public long getEntityVersion() { return entityVersion; }
 }
-

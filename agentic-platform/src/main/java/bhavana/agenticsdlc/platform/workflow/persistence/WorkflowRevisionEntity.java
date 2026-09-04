@@ -23,6 +23,24 @@ public class WorkflowRevisionEntity {
     protected WorkflowRevisionEntity() {
     }
 
+    public WorkflowRevisionEntity(UUID workflowId, int revision, String requirementHash,
+                                  String repositoryHash, Instant createdAt) {
+        if (workflowId == null || revision < 1 || requirementHash == null || !requirementHash.matches("[0-9a-f]{64}")
+                || repositoryHash == null || !repositoryHash.matches("[0-9a-f]{64}") || createdAt == null) {
+            throw new IllegalArgumentException("Valid workflow revision hashes and timestamp are required");
+        }
+        this.workflowId = workflowId;
+        this.revision = revision;
+        this.requirementHash = requirementHash;
+        this.repositoryHash = repositoryHash;
+        this.createdAt = createdAt;
+    }
+
+    public UUID getWorkflowId() { return workflowId; }
+    public int getRevision() { return revision; }
+    public String getRequirementHash() { return requirementHash; }
+    public String getRepositoryHash() { return repositoryHash; }
+    public Instant getCreatedAt() { return createdAt; }
+
     public record Key(UUID workflowId, int revision) implements Serializable {}
 }
-
