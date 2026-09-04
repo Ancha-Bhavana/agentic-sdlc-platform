@@ -1,0 +1,17 @@
+.idea/
+.m2/
+*.iml
+.env
+.env.*
+!.env.example
+target/
+**/target/
+workspaces/
+runtime-data/
+*.log
+*.db
+*.mv.db
+*.trace.db
+.DS_Store
+Thumbs.db
+

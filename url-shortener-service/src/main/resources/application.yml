@@ -1,0 +1,14 @@
+spring:
+  application:
+    name: url-shortener-service
+  datasource:
+    url: ${SHORTENER_DATABASE_URL:jdbc:postgresql://localhost:5432/url_shortener}
+    username: ${SHORTENER_DATABASE_USERNAME:url_shortener}
+    password: ${SHORTENER_DATABASE_PASSWORD:}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+management:
+  endpoints.web.exposure.include: health,info
+  endpoint.health.probes.enabled: true
