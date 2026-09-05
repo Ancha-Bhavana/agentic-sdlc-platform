@@ -32,10 +32,10 @@ class ApprovalServiceTest {
         UUID id = UUID.randomUUID();
         WorkflowRunEntity run = awaitingApproval(id);
         when(runs.findById(id)).thenReturn(Optional.of(run));
-        artifact(id, "diff", "a".repeat(64));
+        artifact(id, "engineering-outcome", "a".repeat(64));
 
         ApprovalEntity result = service.decide(id, 1, GateType.RELEASE_APPROVAL,
-                ApprovalDecision.APPROVED, Map.of("diff", "a".repeat(64)), "Ready to release",
+                ApprovalDecision.APPROVED, Map.of("engineering-outcome", "a".repeat(64)), "Ready to release",
                 new ActorIdentity("release-user", "ROLE_RELEASE_APPROVER"), "correlation");
 
         assertThat(result.getActor()).isEqualTo("release-user");
@@ -47,8 +47,8 @@ class ApprovalServiceTest {
         UUID id = UUID.randomUUID();
         WorkflowRunEntity run = awaitingApproval(id);
         when(runs.findById(id)).thenReturn(Optional.of(run));
-        artifact(id, "diff", "a".repeat(64));
-        Map<String, String> evidence = Map.of("diff", "a".repeat(64));
+        artifact(id, "engineering-outcome", "a".repeat(64));
+        Map<String, String> evidence = Map.of("engineering-outcome", "a".repeat(64));
 
         assertThatThrownBy(() -> service.decide(id, 1, GateType.RELEASE_APPROVAL,
                 ApprovalDecision.APPROVED, evidence, "reason",
@@ -64,11 +64,28 @@ class ApprovalServiceTest {
     @Test void rejectsAStaleArtifactHash() {
         UUID id = UUID.randomUUID();
         when(runs.findById(id)).thenReturn(Optional.of(awaitingApproval(id)));
-        artifact(id, "diff", "b".repeat(64));
+        artifact(id, "engineering-plan", "b".repeat(64));
         assertThatThrownBy(() -> service.decide(id, 1, GateType.CHANGE_APPROVAL,
-                ApprovalDecision.APPROVED, Map.of("diff", "a".repeat(64)), "reviewed",
+                ApprovalDecision.APPROVED, Map.of("engineering-plan", "a".repeat(64)), "reviewed",
                 new ActorIdentity("approver", "ROLE_APPROVER"), "correlation"))
                 .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("stale");
+    }
+
+    @Test void rejectsCurrentButIrrelevantEvidenceForEachGate() {
+        UUID id = UUID.randomUUID();
+        when(runs.findById(id)).thenReturn(Optional.of(awaitingApproval(id)));
+        artifact(id, "repository-analysis", "a".repeat(64));
+
+        assertThatThrownBy(() -> service.decide(id, 1, GateType.CHANGE_APPROVAL,
+                ApprovalDecision.APPROVED, Map.of("repository-analysis", "a".repeat(64)), "reviewed",
+                new ActorIdentity("approver", "ROLE_APPROVER"), "correlation"))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("engineering-plan");
+
+        assertThatThrownBy(() -> service.decide(id, 1, GateType.RELEASE_APPROVAL,
+                ApprovalDecision.APPROVED, Map.of("repository-analysis", "a".repeat(64)), "reviewed",
+                new ActorIdentity("release-user", "ROLE_RELEASE_APPROVER"), "correlation"))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("engineering-outcome");
+        verify(approvals, never()).save(any());
     }
 
     private void artifact(UUID id, String key, String hash) {

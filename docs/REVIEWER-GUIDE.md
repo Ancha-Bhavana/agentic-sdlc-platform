@@ -97,6 +97,10 @@ Invoke-RestMethod -Method Post -Uri "http://localhost:8080/api/workflows/$($work
   } | ConvertTo-Json)
 ```
 
+The change gate rejects a valid hash for any artifact other than the current
+revision's `engineering-plan`. This prevents an approver from satisfying the gate
+with unrelated evidence from the same workflow revision.
+
 Poll again until the second approval pause. Read `generated-source-mutation`,
 `validation-attempt-*`, `repair-patch` when present, and `engineering-outcome`.
 The release approver must submit the current `engineering-outcome` hash; an
@@ -114,6 +118,10 @@ Invoke-RestMethod -Method Post -Uri "http://localhost:8080/api/workflows/$($work
     reason = "Diff, real Maven evidence, risks, and outcome reviewed"
   } | ConvertTo-Json)
 ```
+
+The release gate likewise requires `engineering-outcome`; another current artifact
+cannot substitute for the outcome that links the generated diff, validation attempts,
+repair evidence, risks, and release decision.
 
 For the brownfield run, use `Run the repair scenario while adding redirect
 analytics`. The first Maven build receives a deliberately invalid generated Java

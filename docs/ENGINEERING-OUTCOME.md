@@ -20,7 +20,7 @@ The repository contains a governed agentic SDLC platform and a working URL-short
 
 ## Key decisions
 
-PostgreSQL is the durable source of truth because workflow and approval evidence must survive application restarts. The URL service uses a separate database to avoid migration-history coupling. Human checkpoints are workflow states rather than blocking threads. Artifact hashes bind approvals to reviewed evidence. Model output crosses a schema-validated boundary and cannot directly execute commands or write arbitrary files. Deterministic mode keeps evaluation repeatable and free of paid credentials.
+PostgreSQL is the durable source of truth because workflow and approval evidence must survive application restarts. The URL service uses a separate database to avoid migration-history coupling. Human checkpoints are workflow states rather than blocking threads. Gate-specific artifact hashes bind change approval to the current engineering plan and release approval to the current engineering outcome. Model output crosses a schema-validated boundary and cannot directly execute commands or write arbitrary files. Deterministic mode keeps evaluation repeatable and free of paid credentials.
 
 ## Validation and risk controls
 

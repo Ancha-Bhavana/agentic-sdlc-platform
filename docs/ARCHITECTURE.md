@@ -28,7 +28,7 @@ The explicit graph covers requirement understanding, ambiguity detection, reposi
 
 ## State and governance
 
-Workflow runs, revisions, task checkpoints, policies, approvals, artifacts, and audit events persist in PostgreSQL. A clarification creates a new revision; the impact planner invalidates affected downstream work and marks unaffected outputs reusable. Approvals bind to the current revision and a canonical hash of the reviewer-supplied artifact set. A later revision invalidates prior approvals.
+Workflow runs, revisions, task checkpoints, policies, approvals, artifacts, and audit events persist in PostgreSQL. A clarification creates a new revision; the impact planner invalidates affected downstream work and marks unaffected outputs reusable. Approvals bind to the current revision and a canonical hash of the reviewer-supplied artifact set. Change approval requires the current `engineering-plan`; release approval requires the current `engineering-outcome`. Supplying an unrelated, invented, stale, or earlier-revision artifact cannot satisfy either gate. A later revision invalidates prior approvals.
 
 Each task claim uses a pessimistically locked database row, a unique instance owner, an expiry, and a monotonically increasing fencing token. Heartbeats extend live work. A stale worker cannot complete a task after another instance reclaims it. Every instance scans `RUNNING` workflows at startup and periodically; expired tasks return to `READY` and execution resumes from persisted task and scenario inputs. Clarification and approval states remain paused because they require human input rather than recovery.
 

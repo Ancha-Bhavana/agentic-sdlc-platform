@@ -42,6 +42,7 @@ public class ApprovalService {
         if (run.getStatus() != WorkflowStatus.AWAITING_APPROVAL || run.getCurrentRevision() != revision)
             throw new IllegalStateException("Approval targets a stale revision or workflow not awaiting approval");
         requireRole(gate, actor.role());
+        requireGateEvidence(gate, artifactHashes);
         verifyCurrentArtifacts(workflowId, revision, artifactHashes);
         String reviewedHash = artifactSetHash(artifactHashes);
         ApprovalEntity approval = approvals.save(new ApprovalEntity(workflowId, revision, gate,
@@ -98,6 +99,17 @@ public class ApprovalService {
             if (!artifact.getContentHash().equals(suppliedHash))
                 throw new IllegalArgumentException("Reviewed artifact hash is stale or incorrect: " + key);
         });
+    }
+
+    private void requireGateEvidence(GateType gate, Map<String, String> artifactHashes) {
+        String requiredArtifact = switch (gate) {
+            case CHANGE_APPROVAL -> "engineering-plan";
+            case RELEASE_APPROVAL -> "engineering-outcome";
+            default -> throw new IllegalArgumentException("Unsupported approval gate");
+        };
+        if (artifactHashes == null || !artifactHashes.containsKey(requiredArtifact)) {
+            throw new IllegalArgumentException(gate + " requires current-revision artifact: " + requiredArtifact);
+        }
     }
 
     private void requireRole(GateType gate, String role) {
