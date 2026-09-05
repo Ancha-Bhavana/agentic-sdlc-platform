@@ -24,12 +24,21 @@ import java.nio.charset.StandardCharsets;
 import java.time.*;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @Service
 public class DeterministicScenarioExecutor {
     private static final Logger LOG = LoggerFactory.getLogger(DeterministicScenarioExecutor.class);
+    private static final ScheduledExecutorService HEARTBEATS = Executors.newScheduledThreadPool(1, runnable -> {
+        Thread thread = new Thread(runnable, "workflow-lease-heartbeat");
+        thread.setDaemon(true);
+        return thread;
+    });
     private final PersistentWorkflowCoordinator coordinator;
     private final ContextArtifactRepository artifacts;
     private final AuditService audit;
@@ -243,12 +252,22 @@ public class DeterministicScenarioExecutor {
         if (current.satisfiesDependency()) return;
         OptionalLong claim = coordinator.claimTask(id, revision, task, instanceId, leaseDuration);
         if (claim.isEmpty()) throw new ClaimUnavailableException();
+        long heartbeatMillis = Math.max(1_000L, leaseDuration.toMillis() / 3L);
+        ScheduledFuture<?> heartbeat = HEARTBEATS.scheduleAtFixedRate(() -> {
+            try {
+                coordinator.heartbeatTask(id, revision, task, instanceId, claim.getAsLong(), leaseDuration);
+            } catch (RuntimeException failure) {
+                LOG.warn("Could not renew lease for workflow {} revision {} task {}", id, revision, task, failure);
+            }
+        }, heartbeatMillis, heartbeatMillis, TimeUnit.MILLISECONDS);
         try {
             action.run();
             coordinator.finishClaimedTask(id, revision, task, instanceId, claim.getAsLong(), true);
         } catch (RuntimeException failure) {
             coordinator.finishClaimedTask(id, revision, task, instanceId, claim.getAsLong(), false);
             throw failure;
+        } finally {
+            heartbeat.cancel(true);
         }
         metrics.task(task, "success");
     }

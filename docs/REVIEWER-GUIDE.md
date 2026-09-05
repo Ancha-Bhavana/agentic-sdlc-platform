@@ -1,5 +1,9 @@
 # Reviewer Guide
 
+For a copy-and-paste PowerShell walkthrough covering every runtime scenario,
+artifact inspection, multi-instance failover, and optional OpenAI execution, see
+[`MANUAL-ACCEPTANCE.md`](MANUAL-ACCEPTANCE.md).
+
 ## Automated acceptance
 
 ```powershell
