@@ -73,6 +73,24 @@ class PersistentWorkflowCoordinatorTest {
         verify(runs, times(2)).save(run);
     }
 
+    @Test void distributedClaimUsesLockedRowAndFencedCompletion() {
+        UUID id = UUID.randomUUID();
+        WorkflowRunEntity run = running(id);
+        WorkflowTaskEntity task = pendingTasks(id, 1).stream()
+                .filter(candidate -> candidate.getTaskId().equals("understand")).findFirst().orElseThrow();
+        when(runs.findById(id)).thenReturn(Optional.of(run));
+        when(tasks.lockById(id, 1, "understand")).thenReturn(Optional.of(task));
+        PersistentWorkflowCoordinator coordinator = coordinator();
+
+        long token = coordinator.claimTask(id, 1, "understand", "instance-a", Duration.ofSeconds(30)).orElseThrow();
+        coordinator.heartbeatTask(id, 1, "understand", "instance-a", token, Duration.ofSeconds(30));
+        coordinator.finishClaimedTask(id, 1, "understand", "instance-a", token, true);
+
+        assertThat(task.getStatus()).isEqualTo(TaskStatus.SUCCEEDED);
+        assertThat(task.getAttempt()).isOne();
+        verify(tasks, times(3)).lockById(id, 1, "understand");
+    }
+
     private PersistentWorkflowCoordinator coordinator() {
         return new PersistentWorkflowCoordinator(runs, revisions, tasks, graph,
                 active, clock);

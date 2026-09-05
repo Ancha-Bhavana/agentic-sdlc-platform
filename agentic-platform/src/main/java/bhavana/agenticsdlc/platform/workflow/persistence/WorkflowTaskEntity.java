@@ -15,6 +15,7 @@ import java.io.Serializable;
 import java.time.Instant;
 import java.time.Duration;
 import java.util.UUID;
+import java.util.Objects;
 import bhavana.agenticsdlc.platform.workflow.domain.TaskDefinition;
 
 @Entity
@@ -28,6 +29,8 @@ public class WorkflowTaskEntity {
     @Enumerated(EnumType.STRING) @Column(nullable = false, length = 30) private TaskStatus status;
     @Column(nullable = false) private int attempt;
     private Instant leaseExpiresAt;
+    @Column(length = 160) private String leaseOwner;
+    @Column(nullable = false) private long leaseToken;
     private Instant startedAt;
     private Instant finishedAt;
     @Version private long entityVersion;
@@ -54,6 +57,7 @@ public class WorkflowTaskEntity {
         status = TaskStatus.INVALIDATED;
         finishedAt = now;
         leaseExpiresAt = null;
+        leaseOwner = null;
     }
 
     public void cancel(Instant now) {
@@ -61,6 +65,7 @@ public class WorkflowTaskEntity {
             status = TaskStatus.CANCELLED;
             finishedAt = now;
             leaseExpiresAt = null;
+            leaseOwner = null;
         }
     }
 
@@ -68,20 +73,36 @@ public class WorkflowTaskEntity {
         if (status == TaskStatus.RUNNING && leaseExpiresAt != null && !leaseExpiresAt.isAfter(now)) {
             status = TaskStatus.READY;
             leaseExpiresAt = null;
+            leaseOwner = null;
         }
     }
 
     public void start(Instant now, Duration leaseDuration) {
+        claim("legacy-local", now, leaseDuration);
+    }
+
+    public long claim(String owner, Instant now, Duration leaseDuration) {
         if (status != TaskStatus.PENDING && status != TaskStatus.READY) {
             throw new IllegalStateException("Task cannot start from " + status);
         }
+        if (owner == null || owner.isBlank()) throw new IllegalArgumentException("Lease owner is required");
         if (leaseDuration == null || leaseDuration.isZero() || leaseDuration.isNegative()) {
             throw new IllegalArgumentException("Task lease must be positive");
         }
         status = TaskStatus.RUNNING;
         attempt++;
+        leaseToken++;
+        leaseOwner = owner;
         startedAt = now;
         finishedAt = null;
+        leaseExpiresAt = now.plus(leaseDuration);
+        return leaseToken;
+    }
+
+    public void heartbeat(String owner, long token, Instant now, Duration leaseDuration) {
+        requireLease(owner, token);
+        if (leaseDuration == null || leaseDuration.isZero() || leaseDuration.isNegative())
+            throw new IllegalArgumentException("Task lease must be positive");
         leaseExpiresAt = now.plus(leaseDuration);
     }
 
@@ -89,13 +110,24 @@ public class WorkflowTaskEntity {
         finish(TaskStatus.SUCCEEDED, now);
     }
 
+    public void succeed(String owner, long token, Instant now) {
+        requireLease(owner, token);
+        finish(TaskStatus.SUCCEEDED, now);
+    }
+
     public void fail(Instant now) {
+        finish(TaskStatus.FAILED, now);
+    }
+
+    public void fail(String owner, long token, Instant now) {
+        requireLease(owner, token);
         finish(TaskStatus.FAILED, now);
     }
 
     public void reuse(Instant now) {
         if (status != TaskStatus.PENDING && status != TaskStatus.READY) throw new IllegalStateException("Task cannot be reused from " + status);
         status = TaskStatus.REUSED; finishedAt = now; leaseExpiresAt = null;
+        leaseOwner = null;
     }
 
     private void finish(TaskStatus target, Instant now) {
@@ -103,6 +135,12 @@ public class WorkflowTaskEntity {
         status = target;
         finishedAt = now;
         leaseExpiresAt = null;
+        leaseOwner = null;
+    }
+
+    private void requireLease(String owner, long token) {
+        if (status != TaskStatus.RUNNING || !Objects.equals(leaseOwner, owner) || leaseToken != token)
+            throw new IllegalStateException("Task lease is stale or owned by another instance");
     }
 
     public UUID getWorkflowId() { return workflowId; }
@@ -112,6 +150,8 @@ public class WorkflowTaskEntity {
     public TaskStatus getStatus() { return status; }
     public int getAttempt() { return attempt; }
     public Instant getLeaseExpiresAt() { return leaseExpiresAt; }
+    public String getLeaseOwner() { return leaseOwner; }
+    public long getLeaseToken() { return leaseToken; }
     public Instant getStartedAt() { return startedAt; }
     public Instant getFinishedAt() { return finishedAt; }
 

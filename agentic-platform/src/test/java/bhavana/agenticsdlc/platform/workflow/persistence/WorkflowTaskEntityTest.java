@@ -36,4 +36,20 @@ class WorkflowTaskEntityTest {
 
         assertThat(task.getStatus()).isEqualTo(TaskStatus.RUNNING);
     }
+
+    @Test void fencingTokenRejectsCompletionFromPreviousOwnerAfterFailover() {
+        Instant start = Instant.parse("2026-01-01T00:00:00Z");
+        WorkflowTaskEntity task = new WorkflowTaskEntity(UUID.randomUUID(), 1, definition(), TaskStatus.PENDING);
+        long first = task.claim("instance-a", start, Duration.ofSeconds(5));
+        task.recoverIfLeaseExpired(start.plusSeconds(6));
+        long second = task.claim("instance-b", start.plusSeconds(7), Duration.ofSeconds(5));
+
+        assertThat(second).isGreaterThan(first);
+        assertThatThrownBy(() -> task.succeed("instance-a", first, start.plusSeconds(8)))
+                .isInstanceOf(IllegalStateException.class).hasMessageContaining("stale");
+        task.heartbeat("instance-b", second, start.plusSeconds(8), Duration.ofSeconds(5));
+        task.succeed("instance-b", second, start.plusSeconds(9));
+        assertThat(task.getStatus()).isEqualTo(TaskStatus.SUCCEEDED);
+        assertThat(task.getLeaseOwner()).isNull();
+    }
 }

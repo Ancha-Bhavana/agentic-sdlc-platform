@@ -18,8 +18,9 @@ import java.net.http.HttpClient;
 import java.time.Clock;
 
 @Configuration
-@EnableConfigurationProperties(ModelProviderProperties.class)
+@EnableConfigurationProperties({ModelProviderProperties.class, CoordinationProperties.class})
 @EnableAsync
+@org.springframework.scheduling.annotation.EnableScheduling
 public class PlatformConfiguration {
     @Bean ObjectMapper modelObjectMapper() { return new ObjectMapper().findAndRegisterModules(); }
     @Bean Clock clock() { return Clock.systemUTC(); }

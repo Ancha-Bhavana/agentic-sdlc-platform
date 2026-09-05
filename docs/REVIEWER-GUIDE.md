@@ -17,14 +17,27 @@ docker compose up --build -d
 docker compose ps
 ```
 
-Wait for all four services to become healthy. Verify:
+Wait for all five services to become healthy. Verify both orchestrator instances:
 
 ```powershell
 Invoke-RestMethod http://localhost:8080/actuator/health/readiness
+Invoke-RestMethod http://localhost:8082/actuator/health/readiness
 Invoke-RestMethod http://localhost:8081/actuator/health/readiness
 ```
 
-The orchestrator runs on `8080`; the URL shortener runs on `8081`. The deterministic model is selected unless `.env` explicitly selects OpenAI.
+The orchestrator instances run on `8080` and `8082`; the URL shortener runs on `8081`. Both orchestrators share PostgreSQL workflow state and the isolated runtime volume, but use distinct instance IDs. The deterministic model is selected unless `.env` explicitly selects OpenAI.
+
+## Restart and failover acceptance
+
+For an observable exercise, configure a `10s` task lease and `2s` recovery interval on both orchestrator services. Submit a workflow, then stop the instance owning an active task:
+
+```powershell
+docker compose stop agentic-platform
+Start-Sleep 15
+Invoke-RestMethod http://localhost:8082/api/workflows/$($workflow.id) -Headers $operator
+```
+
+The secondary instance reclaims expired work with a higher fencing token and resumes from persisted execution inputs. Workflows at clarification or approval gates remain paused across restarts. After change approval, inspect the `generated-source-mutation` artifact for the isolated source path, resulting manifest hash, and unified diff.
 
 ## URL-shortener acceptance
 

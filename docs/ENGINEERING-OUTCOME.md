@@ -9,6 +9,7 @@ The repository contains a governed agentic SDLC platform and a working URL-short
 - Spring Boot 4.1 / Java 21 multi-module build
 - PostgreSQL and Flyway persistence for workflows, governance, URLs, and analytics
 - Dependency-aware orchestration with parallel branches, gates, retries, fallback, cancellation, recovery, and selective replanning
+- Database-backed task ownership with heartbeats, expiry, fencing tokens, startup recovery, and multi-instance failover
 - Specialized schema-driven agents with deterministic and OpenAI providers
 - Isolated repository snapshots, manifests, bounded context, atomic patching, diff evidence, controlled Maven execution, and verified rollback
 - Authentication, role separation, exact-revision approvals, policies, audit persistence, correlation IDs, pagination, RFC problem details, and OpenAPI
@@ -36,7 +37,7 @@ Principal risks are untrusted generated changes, credential leakage, stale appro
 
 ## Known limitations
 
-Automatic restart-resume for every in-flight asynchronous scenario, distributed task claiming, rate limiting, abuse prevention, multi-region URL allocation, retention policies, and production identity integration remain future work. Container builds require network access for base images and uncached Maven artifacts. A real OpenAI evaluation requires a reviewer-provided API key and may incur cost.
+Rate limiting, abuse prevention, multi-region URL allocation, retention policies, and production identity integration remain checkpoint 12 work. Recovery waits for the task lease to expire; deliberately paused clarification and approval workflows continue waiting for their required human decision. Container builds require network access for base images and uncached Maven artifacts. A real OpenAI evaluation requires a reviewer-provided API key and may incur cost.
 
 ## Acceptance decision
 

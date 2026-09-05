@@ -26,3 +26,9 @@ agentic-sdlc:
     release-password: ${AGENTIC_SDLC_RELEASE_PASSWORD:release-local}
   repository:
     approved-root: ${AGENTIC_SDLC_APPROVED_REPOSITORY_ROOT:.}
+  coordination:
+    instance-id: ${AGENTIC_SDLC_INSTANCE_ID:${HOSTNAME:local-instance}}
+    lease-duration: ${AGENTIC_SDLC_TASK_LEASE:2m}
+    recovery-interval: ${AGENTIC_SDLC_RECOVERY_INTERVAL:15s}
+    runtime-root: ${AGENTIC_SDLC_RUNTIME_ROOT:${java.io.tmpdir}/agentic-sdlc-runtime}
+    approved-repository-root: ${AGENTIC_SDLC_APPROVED_REPOSITORY_ROOT:.}

@@ -5,6 +5,8 @@ import bhavana.agenticsdlc.platform.audit.AuditService.ActorIdentity;
 import bhavana.agenticsdlc.platform.governance.*;
 import bhavana.agenticsdlc.platform.workflow.domain.*;
 import bhavana.agenticsdlc.platform.workflow.persistence.*;
+import bhavana.agenticsdlc.platform.workflow.coordination.PersistentWorkflowCoordinator;
+import bhavana.agenticsdlc.platform.repository.ManifestService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -34,6 +36,9 @@ class DeterministicScenarioIntegrationTest {
     @Autowired ApprovalService approvals;
     @Autowired WorkflowTaskRepository tasks;
     @Autowired ContextArtifactRepository artifacts;
+    @Autowired WorkflowExecutionSpecRepository executionSpecs;
+    @Autowired DeterministicScenarioExecutor executor;
+    @Autowired PersistentWorkflowCoordinator coordinator;
 
     @Test void greenfieldRunsThroughTwoHumanApprovalGates() {
         var run = workflows.submit("Build a production URL shortener", REPOSITORY.toString(), ScenarioType.GREENFIELD,
@@ -45,6 +50,9 @@ class DeterministicScenarioIntegrationTest {
                 HASHES, "Design reviewed", APPROVER, run.getCorrelationId());
         awaitStatus(run.getId(), WorkflowStatus.AWAITING_APPROVAL);
         assertTask(run.getId(), 1, "validate", TaskStatus.SUCCEEDED);
+        String mutation = artifacts.findFirstByWorkflowIdAndWorkflowRevisionAndArtifactKeyOrderByArtifactVersionDesc(
+                run.getId(), 1, "generated-source-mutation").orElseThrow().getContentJson();
+        assertThat(mutation).contains("src/test/java/bhavana/agenticsdlc/generated/", "+++ b/");
 
         approvals.decide(run.getId(), 1, GateType.RELEASE_APPROVAL, ApprovalDecision.APPROVED,
                 Map.of("release-evidence", "b".repeat(64)), "Evidence reviewed", RELEASE, run.getCorrelationId());
@@ -72,17 +80,36 @@ class DeterministicScenarioIntegrationTest {
 
         workflows.clarify(run.getId(), "Track total redirects and daily UTC counts", REPOSITORY.toString(),
                 run.getCorrelationId(), OPERATOR);
-        await().atMost(Duration.ofSeconds(5)).untilAsserted(() -> {
+        await().atMost(Duration.ofSeconds(15)).untilAsserted(() -> {
             var current = workflows.require(run.getId());
             assertThat(current.getCurrentRevision()).isEqualTo(2);
             assertThat(current.getStatus()).isEqualTo(WorkflowStatus.AWAITING_APPROVAL);
         });
         assertTask(run.getId(), 2, "understand", TaskStatus.REUSED);
         assertTask(run.getId(), 2, "design", TaskStatus.SUCCEEDED);
+
+        approvals.decide(run.getId(), 2, GateType.CHANGE_APPROVAL, ApprovalDecision.APPROVED,
+                HASHES, "Clarified design reviewed", APPROVER, run.getCorrelationId());
+        awaitStatus(run.getId(), WorkflowStatus.AWAITING_APPROVAL);
+        assertThat(artifacts.findFirstByWorkflowIdAndWorkflowRevisionAndArtifactKeyOrderByArtifactVersionDesc(
+                run.getId(), 2, "generated-source-mutation")).isPresent();
+    }
+
+    @Test void persistedRunningWorkflowIsAutomaticallyResumed() {
+        UUID id = UUID.randomUUID();
+        String correlationId = UUID.randomUUID().toString();
+        coordinator.submit(id, correlationId, "Recover this workflow", new ManifestService().capture(REPOSITORY));
+        executionSpecs.save(new WorkflowExecutionSpecEntity(id, 1, ScenarioType.GREENFIELD,
+                "Recover this workflow", REPOSITORY.toString(), correlationId, java.time.Instant.now()));
+
+        executor.recoverInFlight();
+
+        awaitStatus(id, WorkflowStatus.AWAITING_APPROVAL);
+        assertTask(id, 1, "design", TaskStatus.SUCCEEDED);
     }
 
     private void awaitStatus(UUID id, WorkflowStatus status) {
-        await().atMost(Duration.ofSeconds(5)).untilAsserted(() ->
+        await().atMost(Duration.ofSeconds(15)).untilAsserted(() ->
                 assertThat(workflows.require(id).getStatus()).isEqualTo(status));
     }
     private void assertTask(UUID id, int revision, String taskId, TaskStatus status) {

@@ -114,6 +114,35 @@ public class PersistentWorkflowCoordinator {
     }
 
     @Transactional
+    public OptionalLong claimTask(UUID workflowId, int revision, String taskId, String owner, Duration leaseDuration) {
+        WorkflowRunEntity run = requireCurrentRunningRevision(workflowId, revision);
+        WorkflowTaskEntity task = tasks.lockById(run.getId(), revision, taskId)
+                .orElseThrow(() -> new NoSuchElementException("Workflow task not found"));
+        task.recoverIfLeaseExpired(clock.instant());
+        if (task.getStatus().satisfiesDependency()) return OptionalLong.empty();
+        if (task.getStatus() != TaskStatus.PENDING && task.getStatus() != TaskStatus.READY)
+            return OptionalLong.empty();
+        return OptionalLong.of(task.claim(owner, clock.instant(), leaseDuration));
+    }
+
+    @Transactional
+    public void heartbeatTask(UUID workflowId, int revision, String taskId, String owner,
+                              long token, Duration leaseDuration) {
+        WorkflowTaskEntity task = tasks.lockById(workflowId, revision, taskId)
+                .orElseThrow(() -> new NoSuchElementException("Workflow task not found"));
+        task.heartbeat(owner, token, clock.instant(), leaseDuration);
+    }
+
+    @Transactional
+    public void finishClaimedTask(UUID workflowId, int revision, String taskId, String owner,
+                                  long token, boolean successful) {
+        requireCurrentRunningRevision(workflowId, revision);
+        WorkflowTaskEntity task = tasks.lockById(workflowId, revision, taskId)
+                .orElseThrow(() -> new NoSuchElementException("Workflow task not found"));
+        if (successful) task.succeed(owner, token, clock.instant()); else task.fail(owner, token, clock.instant());
+    }
+
+    @Transactional
     public void taskFinished(UUID workflowId, int revision, String taskId, boolean successful) {
         WorkflowRunEntity run = requireCurrentRunningRevision(workflowId, revision);
         WorkflowTaskEntity task = requireTask(run.getId(), revision, taskId);

@@ -103,3 +103,8 @@ docker compose ps
 ```
 
 This starts both applications and their isolated PostgreSQL databases. See the reviewer guide for scenario, approval, governance, and Prometheus checks.
+
+Two orchestrator instances (`8080` and `8082`) share durable workflow state. Configure
+`AGENTIC_SDLC_INSTANCE_ID`, `AGENTIC_SDLC_TASK_LEASE`, and `AGENTIC_SDLC_RECOVERY_INTERVAL`
+to tune database-backed claiming and failover. Deterministic scenarios persist their execution inputs and
+apply an idempotent generated Java source change inside the revision workspace after change approval.

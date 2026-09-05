@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.UUID;
 import java.util.Comparator;
+import java.util.Set;
 
 public final class WorkspaceService {
     private final Path runtimeRoot;
@@ -38,11 +39,19 @@ public final class WorkspaceService {
 
     private void copyTree(Path source, Path destination) {
         try (var stream = Files.walk(source)) {
-            for (Path path : stream.toList()) {
+            for (Path path : stream.filter(path -> !excluded(source, path)).toList()) {
                 Path target = destination.resolve(source.relativize(path));
                 if (Files.isDirectory(path)) Files.createDirectories(target); else Files.copy(path, target);
             }
         } catch (IOException e) { throw new IllegalStateException("Cannot copy workspace tree", e); }
+    }
+
+    private boolean excluded(Path source, Path candidate) {
+        if (candidate.equals(source)) return false;
+        for (Path segment : source.relativize(candidate)) {
+            if (Set.of(".git", "target", "runtime-data").contains(segment.toString())) return true;
+        }
+        return false;
     }
 
     private void deleteTree(Path root) {

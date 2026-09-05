@@ -25,13 +25,16 @@ public class WorkflowApplicationService {
     private final SafePathResolver repositoryPaths;
     private final DeterministicScenarioExecutor scenarios;
     private final WorkflowMetrics metrics;
+    private final WorkflowExecutionSpecRepository executionSpecs;
     public WorkflowApplicationService(PersistentWorkflowCoordinator coordinator, WorkflowRunRepository runs,
             WorkflowTaskRepository tasks, GovernancePolicyEngine policies, ApprovalService approvals,
             AuditService audit, DeterministicScenarioExecutor scenarios, WorkflowMetrics metrics,
+            WorkflowExecutionSpecRepository executionSpecs,
             @Value("${agentic-sdlc.repository.approved-root:.}") Path approvedRoot) {
         this.coordinator = coordinator; this.runs = runs; this.tasks = tasks; this.policies = policies;
         this.approvals = approvals; this.audit = audit; this.scenarios = scenarios;
         this.metrics = metrics;
+        this.executionSpecs = executionSpecs;
         this.repositoryPaths = new SafePathResolver(approvedRoot);
     }
 
@@ -44,11 +47,13 @@ public class WorkflowApplicationService {
         UUID id = UUID.randomUUID();
         Path admitted = repositoryPaths.admitRepository(Path.of(repository));
         policies.enforceSubmission(id, 1, requirement, admitted);
+        ScenarioType selectedType = scenarioType == null ? ScenarioType.BROWNFIELD : scenarioType;
         WorkflowRunEntity run = coordinator.submit(id, correlationId, requirement,
                 new ManifestService().capture(admitted));
+        executionSpecs.save(new WorkflowExecutionSpecEntity(id, 1, selectedType, requirement,
+                admitted.toString(), correlationId, java.time.Instant.now()));
         audit.record(id, 1, correlationId, "WORKFLOW_SUBMITTED", actor, "repository=" + admitted);
-        scenarios.start(id, 1, scenarioType == null ? ScenarioType.BROWNFIELD : scenarioType,
-                requirement, correlationId);
+        scenarios.start(id, 1, selectedType, requirement, correlationId);
         return run;
     }
 
@@ -60,6 +65,10 @@ public class WorkflowApplicationService {
         policies.enforceSubmission(id, nextRevision, requirement, admitted);
         approvals.invalidateForNewRevision(id, actor, correlationId);
         coordinator.clarify(id, requirement, new ManifestService().capture(admitted));
+        ScenarioType type = executionSpecs.findById(new WorkflowExecutionSpecEntity.Key(id, current.getCurrentRevision()))
+                .map(WorkflowExecutionSpecEntity::getScenarioType).orElse(ScenarioType.AMBIGUOUS);
+        executionSpecs.save(new WorkflowExecutionSpecEntity(id, nextRevision, type, requirement,
+                admitted.toString(), correlationId, java.time.Instant.now()));
         audit.record(id, nextRevision, correlationId, "CLARIFICATION_SUBMITTED", actor,
                 "Created workflow revision " + nextRevision);
         scenarios.resumeAfterClarification(id, nextRevision, requirement, correlationId);
