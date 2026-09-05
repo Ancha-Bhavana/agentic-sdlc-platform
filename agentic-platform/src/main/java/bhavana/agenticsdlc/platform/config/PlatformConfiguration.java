@@ -16,6 +16,7 @@ import java.util.concurrent.Executor;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.time.Clock;
+import bhavana.agenticsdlc.platform.validation.*;
 
 @Configuration
 @EnableConfigurationProperties({ModelProviderProperties.class, CoordinationProperties.class})
@@ -60,6 +61,8 @@ public class PlatformConfiguration {
     @Bean AgentCatalog agentCatalog(ValidatedModelGateway gateway, ObjectMapper mapper) {
         return new AgentCatalog(gateway, mapper);
     }
+
+    @Bean BuildRunner workspaceBuildRunner() { return new WorkspaceMavenBuildRunner(128_000); }
 
     @Bean
     PersistentWorkflowCoordinator workflowCoordinator(WorkflowRunRepository runs,

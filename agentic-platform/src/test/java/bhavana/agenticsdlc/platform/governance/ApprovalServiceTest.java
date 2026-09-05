@@ -14,22 +14,25 @@ class ApprovalServiceTest {
     private ApprovalRepository approvals;
     private WorkflowRunRepository runs;
     private ApprovalService service;
+    private ContextArtifactRepository artifacts;
     private final Clock clock = Clock.fixed(Instant.parse("2026-01-01T00:00:00Z"), ZoneOffset.UTC);
 
     @BeforeEach void setUp() {
         approvals = mock(ApprovalRepository.class);
         runs = mock(WorkflowRunRepository.class);
         AuditService audit = mock(AuditService.class);
+        artifacts = mock(ContextArtifactRepository.class);
         when(approvals.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         service = new ApprovalService(approvals, runs, audit, clock,
                 mock(bhavana.agenticsdlc.platform.scenario.DeterministicScenarioExecutor.class),
-                mock(bhavana.agenticsdlc.platform.observability.WorkflowMetrics.class));
+                mock(bhavana.agenticsdlc.platform.observability.WorkflowMetrics.class), artifacts);
     }
 
     @Test void recordsAuthenticatedReleaseApproverAgainstExactRevisionAndArtifacts() {
         UUID id = UUID.randomUUID();
         WorkflowRunEntity run = awaitingApproval(id);
         when(runs.findById(id)).thenReturn(Optional.of(run));
+        artifact(id, "diff", "a".repeat(64));
 
         ApprovalEntity result = service.decide(id, 1, GateType.RELEASE_APPROVAL,
                 ApprovalDecision.APPROVED, Map.of("diff", "a".repeat(64)), "Ready to release",
@@ -44,6 +47,7 @@ class ApprovalServiceTest {
         UUID id = UUID.randomUUID();
         WorkflowRunEntity run = awaitingApproval(id);
         when(runs.findById(id)).thenReturn(Optional.of(run));
+        artifact(id, "diff", "a".repeat(64));
         Map<String, String> evidence = Map.of("diff", "a".repeat(64));
 
         assertThatThrownBy(() -> service.decide(id, 1, GateType.RELEASE_APPROVAL,
@@ -55,6 +59,23 @@ class ApprovalServiceTest {
                 new ActorIdentity("approver", "ROLE_APPROVER"), "correlation"))
                 .isInstanceOf(IllegalStateException.class).hasMessageContaining("stale");
         verify(approvals, never()).save(any());
+    }
+
+    @Test void rejectsAStaleArtifactHash() {
+        UUID id = UUID.randomUUID();
+        when(runs.findById(id)).thenReturn(Optional.of(awaitingApproval(id)));
+        artifact(id, "diff", "b".repeat(64));
+        assertThatThrownBy(() -> service.decide(id, 1, GateType.CHANGE_APPROVAL,
+                ApprovalDecision.APPROVED, Map.of("diff", "a".repeat(64)), "reviewed",
+                new ActorIdentity("approver", "ROLE_APPROVER"), "correlation"))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("stale");
+    }
+
+    private void artifact(UUID id, String key, String hash) {
+        ContextArtifactEntity value = mock(ContextArtifactEntity.class);
+        when(value.getContentHash()).thenReturn(hash);
+        when(artifacts.findFirstByWorkflowIdAndWorkflowRevisionAndArtifactKeyOrderByArtifactVersionDesc(id, 1, key))
+                .thenReturn(Optional.of(value));
     }
 
     @Test void invalidatesEveryPreviouslyValidApprovalAfterRevisionChange() {

@@ -75,7 +75,7 @@ $workflow = Invoke-RestMethod -Method Post -Uri http://localhost:8080/api/workfl
   -Headers $operator -ContentType application/json -Body (@{
     scenarioType = "GREENFIELD"
     requirement = "Build a production URL shortener with expiry and redirect analytics"
-    repositoryPath = "url-shortener-service"
+    repositoryPath = "bhavana"
   } | ConvertTo-Json)
 
 do { Start-Sleep 1; $workflow = Invoke-RestMethod "http://localhost:8080/api/workflows/$($workflow.id)" -Headers $operator } `
@@ -83,7 +83,42 @@ while ($workflow.status -eq "RUNNING")
 $workflow
 ```
 
-At `AWAITING_APPROVAL`, inspect `/artifacts`, read selected artifact content through `/artifacts/{artifactId}`, and submit its named SHA-256 hashes to `/approvals/change`. After the second pause, repeat the evidence review with `/approvals/release`. The approver and release-approver identities are intentionally separate.
+At the first `AWAITING_APPROVAL`, inspect the generated plan and approve its exact
+persisted hash:
+
+```powershell
+$artifacts = (Invoke-RestMethod "http://localhost:8080/api/workflows/$($workflow.id)/artifacts?size=100" -Headers $operator).content
+$plan = $artifacts | Where-Object key -eq "engineering-plan" | Select-Object -First 1
+Invoke-RestMethod -Method Post -Uri "http://localhost:8080/api/workflows/$($workflow.id)/approvals/change" `
+  -Headers $approver -ContentType application/json -Body (@{
+    revision = $workflow.revision; decision = "APPROVED"
+    artifactHashes = @{ "engineering-plan" = $plan.contentHash }
+    reason = "Repository-specific design reviewed"
+  } | ConvertTo-Json)
+```
+
+Poll again until the second approval pause. Read `generated-source-mutation`,
+`validation-attempt-*`, `repair-patch` when present, and `engineering-outcome`.
+The release approver must submit the current `engineering-outcome` hash; an
+invented, stale, or earlier-revision hash is rejected:
+
+```powershell
+do { Start-Sleep 1; $workflow = Invoke-RestMethod "http://localhost:8080/api/workflows/$($workflow.id)" -Headers $operator } `
+while ($workflow.status -eq "RUNNING")
+$artifacts = (Invoke-RestMethod "http://localhost:8080/api/workflows/$($workflow.id)/artifacts?size=100" -Headers $operator).content
+$outcome = $artifacts | Where-Object key -eq "engineering-outcome" | Select-Object -First 1
+Invoke-RestMethod -Method Post -Uri "http://localhost:8080/api/workflows/$($workflow.id)/approvals/release" `
+  -Headers $release -ContentType application/json -Body (@{
+    revision = $workflow.revision; decision = "APPROVED"
+    artifactHashes = @{ "engineering-outcome" = $outcome.contentHash }
+    reason = "Diff, real Maven evidence, risks, and outcome reviewed"
+  } | ConvertTo-Json)
+```
+
+For the brownfield run, use `Run the repair scenario while adding redirect
+analytics`. The first Maven build receives a deliberately invalid generated Java
+change, records the compiler output, invokes the repair agent, reapplies a corrected
+source patch, and reruns Maven. The release evidence must show two attempts.
 
 ## Ambiguous scenario
 
@@ -93,7 +128,7 @@ Submit `scenarioType: AMBIGUOUS` with `Make URL analytics better`. Expect `AWAIT
 Invoke-RestMethod -Method Post -Uri "http://localhost:8080/api/workflows/$($workflow.id)/clarifications" `
   -Headers $operator -ContentType application/json -Body (@{
     requirement = "Track total redirects per short code and daily UTC counts"
-    repositoryPath = "url-shortener-service"
+    repositoryPath = "bhavana"
   } | ConvertTo-Json)
 ```
 

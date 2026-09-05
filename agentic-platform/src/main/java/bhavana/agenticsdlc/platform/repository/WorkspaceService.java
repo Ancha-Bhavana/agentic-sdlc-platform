@@ -49,7 +49,7 @@ public final class WorkspaceService {
     private boolean excluded(Path source, Path candidate) {
         if (candidate.equals(source)) return false;
         for (Path segment : source.relativize(candidate)) {
-            if (Set.of(".git", "target", "runtime-data").contains(segment.toString())) return true;
+            if (Set.of(".git", ".idea", ".env", "target", "runtime-data").contains(segment.toString())) return true;
         }
         return false;
     }

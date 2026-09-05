@@ -24,7 +24,7 @@ PostgreSQL is the durable source of truth because workflow and approval evidence
 
 ## Validation and risk controls
 
-The Maven reactor exercises graph correctness, concurrent scheduling, gate behavior, retries, clarification revisions, persistence, model schemas, HTTP provider behavior, path confinement, snapshots, patch policy, atomic rollback, validation classification, governance, security roles, RFC errors, audit redaction, metrics, all three scenarios, and URL-shortener HTTP behavior. CI repeats the build, stores test and coverage evidence, builds both containers, and validates Compose.
+The Maven reactor exercises graph correctness, concurrent scheduling, gate behavior, retries, clarification revisions, persistence, model schemas, HTTP provider behavior, path confinement, snapshots, patch policy, atomic rollback, real controlled process execution, validation classification, governance, exact artifact verification, security roles, RFC errors, audit redaction, metrics, all three scenarios, and URL-shortener HTTP behavior. CI repeats the build, stores test and coverage evidence, builds both containers, and validates Compose.
 
 Principal risks are untrusted generated changes, credential leakage, stale approval, unsafe paths, partial writes, hanging builds, and failed repair. Controls include schema validation, environment-only credentials, audit redaction, current-revision enforcement, SHA-256 optimistic locking, approved roots, atomic file replacement, fixed capabilities, time/output limits, retry bounds, cancellation, and baseline restoration.
 

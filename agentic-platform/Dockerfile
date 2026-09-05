@@ -3,7 +3,7 @@ WORKDIR /workspace
 COPY . .
 RUN chmod +x mvnw && ./mvnw -B -pl agentic-platform -am -DskipTests package
 
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:21-jdk-alpine
 RUN addgroup -S agentic && adduser -S agentic -G agentic
 WORKDIR /app
 COPY --from=build /workspace/agentic-platform/target/agentic-platform-*.jar app.jar

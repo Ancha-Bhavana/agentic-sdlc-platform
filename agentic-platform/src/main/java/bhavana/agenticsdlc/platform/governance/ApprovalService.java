@@ -23,12 +23,14 @@ public class ApprovalService {
     private final FileHashService hashes = new FileHashService();
     private final DeterministicScenarioExecutor scenarios;
     private final WorkflowMetrics metrics;
+    private final ContextArtifactRepository artifacts;
     public ApprovalService(ApprovalRepository approvals, WorkflowRunRepository runs,
                            AuditService audit, Clock clock, DeterministicScenarioExecutor scenarios,
-                           WorkflowMetrics metrics) {
+                           WorkflowMetrics metrics, ContextArtifactRepository artifacts) {
         this.approvals = approvals; this.runs = runs; this.audit = audit; this.clock = clock;
         this.scenarios = scenarios;
         this.metrics = metrics;
+        this.artifacts = artifacts;
     }
 
     @Transactional
@@ -40,6 +42,7 @@ public class ApprovalService {
         if (run.getStatus() != WorkflowStatus.AWAITING_APPROVAL || run.getCurrentRevision() != revision)
             throw new IllegalStateException("Approval targets a stale revision or workflow not awaiting approval");
         requireRole(gate, actor.role());
+        verifyCurrentArtifacts(workflowId, revision, artifactHashes);
         String reviewedHash = artifactSetHash(artifactHashes);
         ApprovalEntity approval = approvals.save(new ApprovalEntity(workflowId, revision, gate,
                 reviewedHash, decision, actor.name(), actor.role(), reason, clock.instant()));
@@ -83,6 +86,18 @@ public class ApprovalService {
         String canonical = artifactHashes.entrySet().stream().sorted(Map.Entry.comparingByKey())
                 .map(entry -> entry.getKey() + "=" + entry.getValue()).reduce("", (a, b) -> a + b + "\n");
         return hashes.sha256(canonical.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private void verifyCurrentArtifacts(UUID workflowId, int revision, Map<String, String> artifactHashes) {
+        if (artifactHashes == null) throw new IllegalArgumentException("Artifact hashes are required");
+        artifactHashes.forEach((key, suppliedHash) -> {
+            ContextArtifactEntity artifact = artifacts
+                    .findFirstByWorkflowIdAndWorkflowRevisionAndArtifactKeyOrderByArtifactVersionDesc(
+                            workflowId, revision, key)
+                    .orElseThrow(() -> new IllegalArgumentException("Reviewed artifact is absent from current revision: " + key));
+            if (!artifact.getContentHash().equals(suppliedHash))
+                throw new IllegalArgumentException("Reviewed artifact hash is stale or incorrect: " + key);
+        });
     }
 
     private void requireRole(GateType gate, String role) {

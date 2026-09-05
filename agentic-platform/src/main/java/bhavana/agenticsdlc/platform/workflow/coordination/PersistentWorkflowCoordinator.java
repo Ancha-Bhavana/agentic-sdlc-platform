@@ -160,6 +160,12 @@ public class PersistentWorkflowCoordinator {
         active.register(workflowId, revision, token, rollback);
     }
 
+    public void completeActiveExecution(UUID workflowId, int revision) {
+        active.complete(workflowId, revision);
+    }
+
+    public boolean isActiveExecution(UUID workflowId) { return active.isActive(workflowId); }
+
     @Transactional
     public void safeStop(UUID workflowId) {
         WorkflowRunEntity run = requireRun(workflowId);
@@ -169,7 +175,7 @@ public class PersistentWorkflowCoordinator {
         List<WorkflowTaskEntity> current = currentTasks(run);
         current.forEach(task -> task.cancel(now));
         tasks.saveAll(current);
-        active.safeStop(workflowId, run.getCurrentRevision());
+        if (active.isActive(workflowId)) active.safeStop(workflowId, run.getCurrentRevision());
         run.transitionTo(WorkflowStatus.ROLLED_BACK, clock.instant());
         runs.save(run);
     }

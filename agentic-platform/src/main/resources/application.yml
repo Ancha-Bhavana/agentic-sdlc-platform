@@ -34,13 +34,6 @@ agentic-sdlc:
     operator-password: ${agentic_sdlc_operator_password:${AGENTIC_SDLC_OPERATOR_PASSWORD:operator-local}}
     approver-password: ${agentic_sdlc_approver_password:${AGENTIC_SDLC_APPROVER_PASSWORD:approver-local}}
     release-password: ${agentic_sdlc_release_password:${AGENTIC_SDLC_RELEASE_PASSWORD:release-local}}
-server:
-  forward-headers-strategy: framework
-  ssl:
-    enabled: ${AGENTIC_SDLC_TLS_ENABLED:false}
-    key-store: ${AGENTIC_SDLC_TLS_KEY_STORE:}
-    key-store-password: ${agentic_sdlc_tls_key_store_password:${AGENTIC_SDLC_TLS_KEY_STORE_PASSWORD:}}
-    key-store-type: ${AGENTIC_SDLC_TLS_KEY_STORE_TYPE:PKCS12}
   repository:
     approved-root: ${AGENTIC_SDLC_APPROVED_REPOSITORY_ROOT:.}
   coordination:
@@ -49,3 +42,10 @@ server:
     recovery-interval: ${AGENTIC_SDLC_RECOVERY_INTERVAL:15s}
     runtime-root: ${AGENTIC_SDLC_RUNTIME_ROOT:${java.io.tmpdir}/agentic-sdlc-runtime}
     approved-repository-root: ${AGENTIC_SDLC_APPROVED_REPOSITORY_ROOT:.}
+server:
+  forward-headers-strategy: framework
+  ssl:
+    enabled: ${AGENTIC_SDLC_TLS_ENABLED:false}
+    key-store: ${AGENTIC_SDLC_TLS_KEY_STORE:}
+    key-store-password: ${agentic_sdlc_tls_key_store_password:${AGENTIC_SDLC_TLS_KEY_STORE_PASSWORD:}}
+    key-store-type: ${AGENTIC_SDLC_TLS_KEY_STORE_TYPE:PKCS12}

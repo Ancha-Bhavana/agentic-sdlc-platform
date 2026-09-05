@@ -88,7 +88,7 @@ Authenticated reviewers can list the greenfield, brownfield, and ambiguous scena
 {
   "scenarioType": "BROWNFIELD",
   "requirement": "Run the repair scenario while adding redirect analytics",
-  "repositoryPath": "url-shortener-service"
+  "repositoryPath": "bhavana"
 }
 ```
 

@@ -26,15 +26,17 @@ public class WorkflowApplicationService {
     private final DeterministicScenarioExecutor scenarios;
     private final WorkflowMetrics metrics;
     private final WorkflowExecutionSpecRepository executionSpecs;
+    private final GeneratedScenarioMutationService mutations;
     public WorkflowApplicationService(PersistentWorkflowCoordinator coordinator, WorkflowRunRepository runs,
             WorkflowTaskRepository tasks, GovernancePolicyEngine policies, ApprovalService approvals,
             AuditService audit, DeterministicScenarioExecutor scenarios, WorkflowMetrics metrics,
-            WorkflowExecutionSpecRepository executionSpecs,
+            WorkflowExecutionSpecRepository executionSpecs, GeneratedScenarioMutationService mutations,
             @Value("${agentic-sdlc.repository.approved-root:.}") Path approvedRoot) {
         this.coordinator = coordinator; this.runs = runs; this.tasks = tasks; this.policies = policies;
         this.approvals = approvals; this.audit = audit; this.scenarios = scenarios;
         this.metrics = metrics;
         this.executionSpecs = executionSpecs;
+        this.mutations = mutations;
         this.repositoryPaths = new SafePathResolver(approvedRoot);
     }
 
@@ -78,6 +80,7 @@ public class WorkflowApplicationService {
     public WorkflowRunEntity safeStop(UUID id, String correlationId, ActorIdentity actor) {
         WorkflowRunEntity before = require(id);
         coordinator.safeStop(id);
+        mutations.rollback(id, before.getCurrentRevision());
         WorkflowRunEntity run = require(id);
         metrics.rollback("safe-stop");
         metrics.outcome("rolled-back", Duration.between(before.getCreatedAt(), run.getUpdatedAt()));

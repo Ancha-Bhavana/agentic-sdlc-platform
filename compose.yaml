@@ -20,7 +20,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./url-shortener-service:/app/repositories/url-shortener-service:ro
+      - .:/app/repositories/bhavana:ro
       - agentic-runtime-data:/app/runtime-data
     depends_on:
       postgres:
@@ -54,7 +54,7 @@ services:
     ports:
       - "8082:8080"
     volumes:
-      - ./url-shortener-service:/app/repositories/url-shortener-service:ro
+      - .:/app/repositories/bhavana:ro
       - agentic-runtime-data:/app/runtime-data
     depends_on:
       postgres:
