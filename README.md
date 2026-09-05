@@ -53,3 +53,41 @@ java -jar agentic-platform/target/agentic-platform-0.1.0-SNAPSHOT.jar
 The OpenAI endpoint defaults to `https://api.openai.com/v1/responses` and can be changed with `AGENTIC_SDLC_LLM_ENDPOINT`. OpenAPI JSON is available at `/v3/api-docs`, and Swagger UI is available at `/swagger-ui.html`.
 
 Local HTTP Basic users are `operator`, `approver`, and `release-approver`. Their passwords default to `operator-local`, `approver-local`, and `release-local`; override them with `AGENTIC_SDLC_OPERATOR_PASSWORD`, `AGENTIC_SDLC_APPROVER_PASSWORD`, and `AGENTIC_SDLC_RELEASE_PASSWORD` outside local evaluation.
+
+## Run the URL shortener
+
+The URL shortener runs on port `8081` and uses its own PostgreSQL database so its Flyway history remains isolated from the orchestrator:
+
+```powershell
+docker compose up -d url-shortener-postgres
+
+$env:SHORTENER_DATABASE_URL = "jdbc:postgresql://localhost:5433/url_shortener"
+$env:SHORTENER_DATABASE_USERNAME = "url_shortener"
+$env:SHORTENER_DATABASE_PASSWORD = "url_shortener_local"
+.\mvnw.cmd -pl url-shortener-service spring-boot:run
+```
+
+Create a link, follow its redirect, and inspect analytics:
+
+```powershell
+$created = Invoke-RestMethod -Method Post -Uri http://localhost:8081/api/urls `
+  -ContentType application/json -Body '{"targetUrl":"https://example.com/docs"}'
+Invoke-WebRequest -MaximumRedirection 0 $created.shortUrl -SkipHttpErrorCheck
+Invoke-RestMethod "http://localhost:8081/api/urls/$($created.code)/analytics"
+```
+
+The service also supports optional expiry, link inspection, deactivation, UTC daily analytics, OpenAPI at `http://localhost:8081/v3/api-docs`, and Swagger UI at `http://localhost:8081/swagger-ui.html`.
+
+## Run deterministic workflow scenarios
+
+Authenticated reviewers can list the greenfield, brownfield, and ambiguous scenarios at `GET /api/scenarios`. Submit one with `scenarioType` set to `GREENFIELD`, `BROWNFIELD`, or `AMBIGUOUS`:
+
+```json
+{
+  "scenarioType": "BROWNFIELD",
+  "requirement": "Run the repair scenario while adding redirect analytics",
+  "repositoryPath": "url-shortener-service"
+}
+```
+
+The asynchronous workflow stops for exact-revision change approval, runs implementation and test branches through validation, and stops again for release approval. An ambiguous scenario first returns `AWAITING_CLARIFICATION`; clarification creates a selectively replanned revision. Workflow artifacts and their bounded content are available below `/api/workflows/{id}/artifacts`.

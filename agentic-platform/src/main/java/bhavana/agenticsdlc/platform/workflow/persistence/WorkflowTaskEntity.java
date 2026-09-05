@@ -93,6 +93,11 @@ public class WorkflowTaskEntity {
         finish(TaskStatus.FAILED, now);
     }
 
+    public void reuse(Instant now) {
+        if (status != TaskStatus.PENDING && status != TaskStatus.READY) throw new IllegalStateException("Task cannot be reused from " + status);
+        status = TaskStatus.REUSED; finishedAt = now; leaseExpiresAt = null;
+    }
+
     private void finish(TaskStatus target, Instant now) {
         if (status != TaskStatus.RUNNING) throw new IllegalStateException("Task is not running");
         status = target;

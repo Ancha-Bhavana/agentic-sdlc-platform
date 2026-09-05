@@ -5,8 +5,10 @@ import bhavana.agenticsdlc.platform.audit.AuditService.ActorIdentity;
 import bhavana.agenticsdlc.platform.repository.FileHashService;
 import bhavana.agenticsdlc.platform.workflow.domain.*;
 import bhavana.agenticsdlc.platform.workflow.persistence.*;
+import bhavana.agenticsdlc.platform.scenario.DeterministicScenarioExecutor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.*;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.util.*;
@@ -18,9 +20,11 @@ public class ApprovalService {
     private final AuditService audit;
     private final Clock clock;
     private final FileHashService hashes = new FileHashService();
+    private final DeterministicScenarioExecutor scenarios;
     public ApprovalService(ApprovalRepository approvals, WorkflowRunRepository runs,
-                           AuditService audit, Clock clock) {
+                           AuditService audit, Clock clock, DeterministicScenarioExecutor scenarios) {
         this.approvals = approvals; this.runs = runs; this.audit = audit; this.clock = clock;
+        this.scenarios = scenarios;
     }
 
     @Transactional
@@ -45,6 +49,14 @@ public class ApprovalService {
         runs.save(run);
         audit.record(workflowId, revision, correlationId, "APPROVAL_DECISION", actor,
                 gate + " " + decision + " artifactHash=" + reviewedHash + " reason=" + reason);
+        if (decision == ApprovalDecision.APPROVED && gate == GateType.CHANGE_APPROVAL) {
+            Runnable resume = () -> scenarios.resumeAfterChangeApproval(workflowId, revision, correlationId);
+            if (TransactionSynchronizationManager.isSynchronizationActive()) {
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override public void afterCommit() { resume.run(); }
+                });
+            } else resume.run();
+        }
         return approval;
     }
 

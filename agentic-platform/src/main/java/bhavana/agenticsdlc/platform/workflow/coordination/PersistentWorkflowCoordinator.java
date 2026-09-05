@@ -54,6 +54,30 @@ public class PersistentWorkflowCoordinator {
     }
 
     @Transactional
+    public void pauseForApproval(UUID workflowId) {
+        WorkflowRunEntity run = requireRun(workflowId);
+        run.transitionTo(WorkflowStatus.AWAITING_APPROVAL, clock.instant());
+        runs.save(run);
+    }
+
+    @Transactional
+    public void fail(UUID workflowId) {
+        WorkflowRunEntity run = requireRun(workflowId);
+        if (run.getStatus() == WorkflowStatus.RUNNING) {
+            run.transitionTo(WorkflowStatus.FAILED, clock.instant());
+            runs.save(run);
+        }
+    }
+
+    @Transactional
+    public void taskReused(UUID workflowId, int revision, String taskId) {
+        WorkflowRunEntity run = requireCurrentRunningRevision(workflowId, revision);
+        WorkflowTaskEntity task = requireTask(run.getId(), revision, taskId);
+        task.reuse(clock.instant());
+        tasks.save(task);
+    }
+
+    @Transactional
     public RevisionImpactPlan clarify(UUID workflowId, String clarifiedRequirement,
                                       RepositoryManifest repository) {
         WorkflowRunEntity run = requireRun(workflowId);

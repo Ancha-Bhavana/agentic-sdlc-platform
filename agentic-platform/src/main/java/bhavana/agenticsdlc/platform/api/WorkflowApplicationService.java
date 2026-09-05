@@ -4,6 +4,7 @@ import bhavana.agenticsdlc.platform.audit.*;
 import bhavana.agenticsdlc.platform.audit.AuditService.ActorIdentity;
 import bhavana.agenticsdlc.platform.governance.*;
 import bhavana.agenticsdlc.platform.repository.*;
+import bhavana.agenticsdlc.platform.scenario.*;
 import bhavana.agenticsdlc.platform.workflow.coordination.PersistentWorkflowCoordinator;
 import bhavana.agenticsdlc.platform.workflow.persistence.*;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,20 +21,30 @@ public class WorkflowApplicationService {
     private final ApprovalService approvals;
     private final AuditService audit;
     private final SafePathResolver repositoryPaths;
+    private final DeterministicScenarioExecutor scenarios;
     public WorkflowApplicationService(PersistentWorkflowCoordinator coordinator, WorkflowRunRepository runs,
             WorkflowTaskRepository tasks, GovernancePolicyEngine policies, ApprovalService approvals,
-            AuditService audit, @Value("${agentic-sdlc.repository.approved-root:.}") Path approvedRoot) {
+            AuditService audit, DeterministicScenarioExecutor scenarios,
+            @Value("${agentic-sdlc.repository.approved-root:.}") Path approvedRoot) {
         this.coordinator = coordinator; this.runs = runs; this.tasks = tasks; this.policies = policies;
-        this.approvals = approvals; this.audit = audit; this.repositoryPaths = new SafePathResolver(approvedRoot);
+        this.approvals = approvals; this.audit = audit; this.scenarios = scenarios;
+        this.repositoryPaths = new SafePathResolver(approvedRoot);
     }
 
     public WorkflowRunEntity submit(String requirement, String repository, String correlationId, ActorIdentity actor) {
+        return submit(requirement, repository, ScenarioType.BROWNFIELD, correlationId, actor);
+    }
+
+    public WorkflowRunEntity submit(String requirement, String repository, ScenarioType scenarioType,
+                                    String correlationId, ActorIdentity actor) {
         UUID id = UUID.randomUUID();
         Path admitted = repositoryPaths.admitRepository(Path.of(repository));
         policies.enforceSubmission(id, 1, requirement, admitted);
         WorkflowRunEntity run = coordinator.submit(id, correlationId, requirement,
                 new ManifestService().capture(admitted));
         audit.record(id, 1, correlationId, "WORKFLOW_SUBMITTED", actor, "repository=" + admitted);
+        scenarios.start(id, 1, scenarioType == null ? ScenarioType.BROWNFIELD : scenarioType,
+                requirement, correlationId);
         return run;
     }
 
@@ -47,6 +58,7 @@ public class WorkflowApplicationService {
         coordinator.clarify(id, requirement, new ManifestService().capture(admitted));
         audit.record(id, nextRevision, correlationId, "CLARIFICATION_SUBMITTED", actor,
                 "Created workflow revision " + nextRevision);
+        scenarios.resumeAfterClarification(id, nextRevision, requirement, correlationId);
         return require(id);
     }
 

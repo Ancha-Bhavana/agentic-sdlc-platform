@@ -46,7 +46,7 @@ class WorkflowControllerSecurityTest {
         UUID id = UUID.randomUUID();
         WorkflowRunEntity run = new WorkflowRunEntity(id, "request-123", Instant.parse("2026-01-01T00:00:00Z"));
         run.transitionTo(WorkflowStatus.RUNNING, Instant.parse("2026-01-01T00:00:00Z"));
-        when(workflows.submit(anyString(), anyString(), eq("request-123"), any())).thenReturn(run);
+        when(workflows.submit(anyString(), anyString(), any(), eq("request-123"), any())).thenReturn(run);
         when(workflows.currentTasks(id)).thenReturn(java.util.List.of());
 
         mvc.perform(post("/api/workflows").with(httpBasic("operator", "operator-local"))

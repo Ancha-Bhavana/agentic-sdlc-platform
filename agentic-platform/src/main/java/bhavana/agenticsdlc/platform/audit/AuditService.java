@@ -25,6 +25,12 @@ public class AuditService {
                 bounded(safePayload, 2000), clock.instant()));
     }
 
+    public AuditEventEntity system(UUID workflowId, Integer revision, String correlationId,
+                                   String eventType, String payload) {
+        return record(workflowId, revision, correlationId, eventType,
+                new ActorIdentity("deterministic-scenario-executor", "ROLE_SYSTEM"), payload);
+    }
+
     String redact(String value) { return SENSITIVE.matcher(value).replaceAll("$1$2[REDACTED]"); }
     private String bounded(String value, int maximum) {
         if (value == null || value.isBlank()) throw new IllegalArgumentException("Audit fields must not be blank");

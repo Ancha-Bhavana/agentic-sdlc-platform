@@ -1,6 +1,7 @@
 package bhavana.agenticsdlc.platform.api;
 
 import bhavana.agenticsdlc.platform.workflow.persistence.*;
+import bhavana.agenticsdlc.platform.scenario.ScenarioType;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -23,7 +24,7 @@ public class WorkflowController {
     @Operation(summary = "Submit an asynchronous governed engineering workflow")
     public ResponseEntity<WorkflowView> submit(@Valid @RequestBody SubmitWorkflowRequest request,
                                                Authentication authentication, HttpServletRequest servletRequest) {
-        WorkflowRunEntity run = workflows.submit(request.requirement(), request.repositoryPath(),
+        WorkflowRunEntity run = workflows.submit(request.requirement(), request.repositoryPath(), request.scenarioType(),
                 correlation(servletRequest), AuthenticatedActor.from(authentication));
         return ResponseEntity.accepted().location(URI.create("/api/workflows/" + run.getId()))
                 .body(WorkflowView.from(run, workflows.currentTasks(run.getId())));
@@ -62,7 +63,12 @@ public class WorkflowController {
 
     public record SubmitWorkflowRequest(
             @NotBlank @Size(max = 32_000) String requirement,
-            @NotBlank @Size(max = 1000) String repositoryPath) { }
+            @NotBlank @Size(max = 1000) String repositoryPath,
+            ScenarioType scenarioType) {
+        public SubmitWorkflowRequest(String requirement, String repositoryPath) {
+            this(requirement, repositoryPath, ScenarioType.BROWNFIELD);
+        }
+    }
     public record ClarificationRequest(
             @NotBlank @Size(max = 32_000) String requirement,
             @NotBlank @Size(max = 1000) String repositoryPath) { }

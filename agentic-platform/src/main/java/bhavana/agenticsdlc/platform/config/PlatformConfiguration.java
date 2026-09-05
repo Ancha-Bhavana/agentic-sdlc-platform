@@ -10,17 +10,27 @@ import bhavana.agenticsdlc.platform.workflow.persistence.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.*;
+import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import java.util.concurrent.Executor;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.time.Clock;
 
 @Configuration
 @EnableConfigurationProperties(ModelProviderProperties.class)
+@EnableAsync
 public class PlatformConfiguration {
     @Bean ObjectMapper modelObjectMapper() { return new ObjectMapper().findAndRegisterModules(); }
     @Bean Clock clock() { return Clock.systemUTC(); }
     @Bean WorkflowGraph workflowGraph() { return new LifecycleGraphFactory().create(); }
     @Bean ActiveWorkflowRegistry activeWorkflowRegistry() { return new ActiveWorkflowRegistry(); }
+    @Bean(name = "scenarioTaskExecutor") Executor scenarioTaskExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(2); executor.setMaxPoolSize(4); executor.setQueueCapacity(50);
+        executor.setThreadNamePrefix("scenario-"); executor.initialize();
+        return executor;
+    }
 
     @Bean
     ModelProvider modelProvider(ModelProviderProperties properties, ObjectMapper mapper) {

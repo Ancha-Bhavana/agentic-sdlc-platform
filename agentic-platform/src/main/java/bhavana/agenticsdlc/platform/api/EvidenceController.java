@@ -9,6 +9,7 @@ import org.springframework.data.domain.*;
 import org.springframework.web.bind.annotation.*;
 import java.time.Instant;
 import java.util.UUID;
+import java.util.NoSuchElementException;
 
 @RestController
 @RequestMapping("/api/workflows/{workflowId}")
@@ -38,6 +39,17 @@ public class EvidenceController {
             @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size) {
         return artifacts.findByWorkflowIdOrderByCreatedAtDesc(workflowId, PageRequest.of(page, size))
                 .map(ArtifactView::from);
+    }
+
+    @GetMapping("/artifacts/{artifactId}")
+    @Operation(summary = "Read one bounded workflow artifact")
+    public ArtifactContentView artifact(@PathVariable UUID workflowId, @PathVariable UUID artifactId) {
+        ContextArtifactEntity value = artifacts.findById(artifactId)
+                .filter(candidate -> candidate.getWorkflowId().equals(workflowId))
+                .orElseThrow(() -> new NoSuchElementException("Workflow artifact not found"));
+        String content = value.getContentJson();
+        if (content.length() > 128_000) content = content.substring(0, 128_000);
+        return new ArtifactContentView(ArtifactView.from(value), content);
     }
 
     @GetMapping("/audit-events")
@@ -71,6 +83,7 @@ public class EvidenceController {
                     value.getContentHash(), value.getCreatedAt());
         }
     }
+    public record ArtifactContentView(ArtifactView metadata, String content) { }
     public record AuditView(UUID id, Integer revision, String eventType, String actor, String role,
                             String payloadHash, String details, Instant createdAt) {
         static AuditView from(AuditEventEntity value) {

@@ -21,7 +21,8 @@ class ApprovalServiceTest {
         runs = mock(WorkflowRunRepository.class);
         AuditService audit = mock(AuditService.class);
         when(approvals.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        service = new ApprovalService(approvals, runs, audit, clock);
+        service = new ApprovalService(approvals, runs, audit, clock,
+                mock(bhavana.agenticsdlc.platform.scenario.DeterministicScenarioExecutor.class));
     }
 
     @Test void recordsAuthenticatedReleaseApproverAgainstExactRevisionAndArtifacts() {

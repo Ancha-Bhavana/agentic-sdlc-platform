@@ -26,6 +26,15 @@ public class ContextArtifactEntity {
     protected ContextArtifactEntity() {
     }
 
+    public ContextArtifactEntity(UUID workflowId, int workflowRevision, String artifactKey,
+                                 long artifactVersion, String producerTaskId, String contentHash,
+                                 String inputHashesJson, String contentJson, Instant createdAt) {
+        this.id = UUID.randomUUID(); this.workflowId = workflowId; this.workflowRevision = workflowRevision;
+        this.artifactKey = artifactKey; this.artifactVersion = artifactVersion;
+        this.producerTaskId = producerTaskId; this.schemaVersion = "1.0"; this.contentHash = contentHash;
+        this.inputHashesJson = inputHashesJson; this.contentJson = contentJson; this.createdAt = createdAt;
+    }
+
     public UUID getId() { return id; } public UUID getWorkflowId() { return workflowId; }
     public int getWorkflowRevision() { return workflowRevision; } public String getArtifactKey() { return artifactKey; }
     public long getArtifactVersion() { return artifactVersion; } public String getProducerTaskId() { return producerTaskId; }
