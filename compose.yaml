@@ -1,4 +1,56 @@
 services:
+  agentic-platform:
+    build:
+      context: .
+      dockerfile: agentic-platform/Dockerfile
+    environment:
+      AGENTIC_SDLC_DATABASE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-agentic_sdlc}
+      AGENTIC_SDLC_DATABASE_USERNAME: ${POSTGRES_USER:-agentic_sdlc}
+      AGENTIC_SDLC_DATABASE_PASSWORD: ${POSTGRES_PASSWORD:-agentic_sdlc_local}
+      AGENTIC_SDLC_LLM_PROVIDER: ${AGENTIC_SDLC_LLM_PROVIDER:-deterministic}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      AGENTIC_SDLC_APPROVED_REPOSITORY_ROOT: /app/repositories
+      AGENTIC_SDLC_OPERATOR_PASSWORD: ${AGENTIC_SDLC_OPERATOR_PASSWORD:-operator-local}
+      AGENTIC_SDLC_APPROVER_PASSWORD: ${AGENTIC_SDLC_APPROVER_PASSWORD:-approver-local}
+      AGENTIC_SDLC_RELEASE_PASSWORD: ${AGENTIC_SDLC_RELEASE_PASSWORD:-release-local}
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./url-shortener-service:/app/repositories/url-shortener-service:ro
+      - agentic-runtime-data:/app/runtime-data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8080/actuator/health/readiness | grep -q '\"status\":\"UP\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
+  url-shortener:
+    build:
+      context: .
+      dockerfile: url-shortener-service/Dockerfile
+    environment:
+      SHORTENER_DATABASE_URL: jdbc:postgresql://url-shortener-postgres:5432/${SHORTENER_POSTGRES_DB:-url_shortener}
+      SHORTENER_DATABASE_USERNAME: ${SHORTENER_POSTGRES_USER:-url_shortener}
+      SHORTENER_DATABASE_PASSWORD: ${SHORTENER_POSTGRES_PASSWORD:-url_shortener_local}
+      SHORTENER_SERVER_PORT: 8081
+    ports:
+      - "8081:8081"
+    depends_on:
+      url-shortener-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://localhost:8081/actuator/health/readiness | grep -q '\"status\":\"UP\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    restart: unless-stopped
+
   postgres:
     image: postgres:17-alpine
     container_name: agentic-sdlc-postgres
@@ -40,5 +92,6 @@ services:
     restart: unless-stopped
 
 volumes:
+  agentic-runtime-data:
   agentic-sdlc-postgres-data:
   url-shortener-postgres-data:

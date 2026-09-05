@@ -13,5 +13,6 @@ server:
   port: ${SHORTENER_SERVER_PORT:8081}
   shutdown: graceful
 management:
-  endpoints.web.exposure.include: health,info
+  endpoints.web.exposure.include: health,info,prometheus
   endpoint.health.probes.enabled: true
+  metrics.tags.application: ${spring.application.name}

@@ -6,6 +6,7 @@ import bhavana.agenticsdlc.platform.repository.FileHashService;
 import bhavana.agenticsdlc.platform.workflow.domain.*;
 import bhavana.agenticsdlc.platform.workflow.persistence.*;
 import bhavana.agenticsdlc.platform.scenario.DeterministicScenarioExecutor;
+import bhavana.agenticsdlc.platform.observability.WorkflowMetrics;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.*;
@@ -21,10 +22,13 @@ public class ApprovalService {
     private final Clock clock;
     private final FileHashService hashes = new FileHashService();
     private final DeterministicScenarioExecutor scenarios;
+    private final WorkflowMetrics metrics;
     public ApprovalService(ApprovalRepository approvals, WorkflowRunRepository runs,
-                           AuditService audit, Clock clock, DeterministicScenarioExecutor scenarios) {
+                           AuditService audit, Clock clock, DeterministicScenarioExecutor scenarios,
+                           WorkflowMetrics metrics) {
         this.approvals = approvals; this.runs = runs; this.audit = audit; this.clock = clock;
         this.scenarios = scenarios;
+        this.metrics = metrics;
     }
 
     @Transactional
@@ -41,8 +45,10 @@ public class ApprovalService {
                 reviewedHash, decision, actor.name(), actor.role(), reason, clock.instant()));
         if (decision == ApprovalDecision.REJECTED) {
             run.transitionTo(WorkflowStatus.REJECTED, clock.instant());
+            metrics.outcome("rejected", java.time.Duration.between(run.getCreatedAt(), clock.instant()));
         } else if (gate == GateType.RELEASE_APPROVAL) {
             run.transitionTo(WorkflowStatus.COMPLETED, clock.instant());
+            metrics.outcome("completed", java.time.Duration.between(run.getCreatedAt(), clock.instant()));
         } else {
             run.transitionTo(WorkflowStatus.RUNNING, clock.instant());
         }

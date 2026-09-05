@@ -5,11 +5,13 @@ import bhavana.agenticsdlc.platform.audit.AuditService.ActorIdentity;
 import bhavana.agenticsdlc.platform.governance.*;
 import bhavana.agenticsdlc.platform.repository.*;
 import bhavana.agenticsdlc.platform.scenario.*;
+import bhavana.agenticsdlc.platform.observability.WorkflowMetrics;
 import bhavana.agenticsdlc.platform.workflow.coordination.PersistentWorkflowCoordinator;
 import bhavana.agenticsdlc.platform.workflow.persistence.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.*;
 
 @Service
@@ -22,12 +24,14 @@ public class WorkflowApplicationService {
     private final AuditService audit;
     private final SafePathResolver repositoryPaths;
     private final DeterministicScenarioExecutor scenarios;
+    private final WorkflowMetrics metrics;
     public WorkflowApplicationService(PersistentWorkflowCoordinator coordinator, WorkflowRunRepository runs,
             WorkflowTaskRepository tasks, GovernancePolicyEngine policies, ApprovalService approvals,
-            AuditService audit, DeterministicScenarioExecutor scenarios,
+            AuditService audit, DeterministicScenarioExecutor scenarios, WorkflowMetrics metrics,
             @Value("${agentic-sdlc.repository.approved-root:.}") Path approvedRoot) {
         this.coordinator = coordinator; this.runs = runs; this.tasks = tasks; this.policies = policies;
         this.approvals = approvals; this.audit = audit; this.scenarios = scenarios;
+        this.metrics = metrics;
         this.repositoryPaths = new SafePathResolver(approvedRoot);
     }
 
@@ -63,8 +67,11 @@ public class WorkflowApplicationService {
     }
 
     public WorkflowRunEntity safeStop(UUID id, String correlationId, ActorIdentity actor) {
+        WorkflowRunEntity before = require(id);
         coordinator.safeStop(id);
         WorkflowRunEntity run = require(id);
+        metrics.rollback("safe-stop");
+        metrics.outcome("rolled-back", Duration.between(before.getCreatedAt(), run.getUpdatedAt()));
         audit.record(id, run.getCurrentRevision(), correlationId, "WORKFLOW_SAFE_STOPPED", actor,
                 "Execution cancelled and workspace rollback completed");
         return run;

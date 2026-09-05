@@ -1,0 +1,9 @@
+.git
+.github
+.idea
+.env
+**/target
+runtime-data
+workspaces
+*.iml
+*.log

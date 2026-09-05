@@ -12,6 +12,8 @@ A governed agentic software-engineering platform demonstrated through a producti
 - Java 21
 - Docker Desktop for PostgreSQL integration and container scenarios
 
+Detailed review material: [Architecture](docs/ARCHITECTURE.md), [Reviewer Guide](docs/REVIEWER-GUIDE.md), and [Engineering Outcome](docs/ENGINEERING-OUTCOME.md).
+
 ## Build
 
 Windows:
@@ -72,7 +74,7 @@ Create a link, follow its redirect, and inspect analytics:
 ```powershell
 $created = Invoke-RestMethod -Method Post -Uri http://localhost:8081/api/urls `
   -ContentType application/json -Body '{"targetUrl":"https://example.com/docs"}'
-Invoke-WebRequest -MaximumRedirection 0 $created.shortUrl -SkipHttpErrorCheck
+curl.exe --max-redirs 0 --silent --dump-header - --output NUL $created.shortUrl
 Invoke-RestMethod "http://localhost:8081/api/urls/$($created.code)/analytics"
 ```
 
@@ -91,3 +93,13 @@ Authenticated reviewers can list the greenfield, brownfield, and ambiguous scena
 ```
 
 The asynchronous workflow stops for exact-revision change approval, runs implementation and test branches through validation, and stops again for release approval. An ambiguous scenario first returns `AWAITING_CLARIFICATION`; clarification creates a selectively replanned revision. Workflow artifacts and their bounded content are available below `/api/workflows/{id}/artifacts`.
+
+## Run the complete container stack
+
+```powershell
+Copy-Item .env.example .env
+docker compose up --build -d
+docker compose ps
+```
+
+This starts both applications and their isolated PostgreSQL databases. See the reviewer guide for scenario, approval, governance, and Prometheus checks.

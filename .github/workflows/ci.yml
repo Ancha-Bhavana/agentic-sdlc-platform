@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Verify reactor
+        run: ./mvnw -B clean verify
+      - name: Upload test and coverage evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-evidence
+          path: |
+            **/target/surefire-reports/**
+            **/target/site/jacoco/**
+      - name: Build orchestrator image
+        run: docker build -f agentic-platform/Dockerfile -t agentic-platform:test .
+      - name: Build URL-shortener image
+        run: docker build -f url-shortener-service/Dockerfile -t url-shortener:test .
+      - name: Validate Compose model
+        run: docker compose config --quiet

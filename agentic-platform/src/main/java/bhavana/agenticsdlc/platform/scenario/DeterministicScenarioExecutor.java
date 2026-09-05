@@ -3,6 +3,7 @@ package bhavana.agenticsdlc.platform.scenario;
 import bhavana.agenticsdlc.platform.audit.AuditService;
 import bhavana.agenticsdlc.platform.audit.AuditService.ActorIdentity;
 import bhavana.agenticsdlc.platform.repository.FileHashService;
+import bhavana.agenticsdlc.platform.observability.WorkflowMetrics;
 import bhavana.agenticsdlc.platform.workflow.coordination.PersistentWorkflowCoordinator;
 import bhavana.agenticsdlc.platform.workflow.persistence.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,15 +22,18 @@ public class DeterministicScenarioExecutor {
     private final ObjectMapper mapper;
     private final Clock clock;
     private final FileHashService hashes = new FileHashService();
+    private final WorkflowMetrics metrics;
     public DeterministicScenarioExecutor(PersistentWorkflowCoordinator coordinator,
-            ContextArtifactRepository artifacts, AuditService audit, ObjectMapper mapper, Clock clock) {
+            ContextArtifactRepository artifacts, AuditService audit, ObjectMapper mapper, Clock clock,
+            WorkflowMetrics metrics) {
         this.coordinator = coordinator; this.artifacts = artifacts; this.audit = audit;
-        this.mapper = mapper; this.clock = clock;
+        this.mapper = mapper; this.clock = clock; this.metrics = metrics;
     }
 
     @Async("scenarioTaskExecutor")
     public void start(UUID id, int revision, ScenarioType type, String requirement, String correlationId) {
         try {
+            metrics.workflowSubmitted(type.name());
             evidence(id, revision, "scenario-profile", "understand", Map.of("type", type, "requirement", requirement,
                     "repairScenario", requirement.toLowerCase(Locale.ROOT).contains("repair scenario")));
             complete(id, revision, "understand");
@@ -46,6 +50,7 @@ public class DeterministicScenarioExecutor {
         } catch (RuntimeException failure) {
             audit.system(id, revision, correlationId, "SCENARIO_EXECUTION_FAILED", failure.getClass().getSimpleName());
             coordinator.fail(id);
+            metrics.outcome("failed", Duration.ZERO);
         }
     }
 
@@ -58,11 +63,13 @@ public class DeterministicScenarioExecutor {
 
     @Async("scenarioTaskExecutor")
     public void resumeAfterChangeApproval(UUID id, int revision, String correlationId) {
+        Instant started = clock.instant();
         boolean repair = artifacts.findFirstByWorkflowIdAndWorkflowRevisionAndArtifactKeyOrderByArtifactVersionDesc(
                 id, revision, "scenario-profile").map(ContextArtifactEntity::getContentJson)
                 .map(value -> value.contains("\"repairScenario\":true")).orElse(false);
         for (String task : List.of("implementation", "tests", "patch-policy", "apply")) complete(id, revision, task);
         if (repair) {
+            metrics.retry("validation");
             evidence(id, revision, "validation-attempt-1", "validate", Map.of("exitCode", 1,
                     "classification", "TEST_FAILURE", "action", "invoke repair agent"));
         }
@@ -70,6 +77,7 @@ public class DeterministicScenarioExecutor {
         complete(id, revision, "repair");
         evidence(id, revision, "validation-summary", "repair", Map.of("successful", true,
                 "attempts", repair ? 2 : 1, "repaired", repair, "command", "mvnw clean verify"));
+        if (repair) metrics.repair(Duration.between(started, clock.instant()), true);
         complete(id, revision, "documentation"); complete(id, revision, "risk"); complete(id, revision, "release");
         evidence(id, revision, "release-evidence", "release", Map.of("testsPassed", true,
                 "rollbackAvailable", true, "humanApprovalRequired", true));
@@ -89,6 +97,7 @@ public class DeterministicScenarioExecutor {
     private void complete(UUID id, int revision, String task) {
         coordinator.taskStarted(id, revision, task, LEASE);
         coordinator.taskFinished(id, revision, task, true);
+        metrics.task(task, "success");
     }
 
     private void evidence(UUID id, int revision, String key, String producer, Object value) {
