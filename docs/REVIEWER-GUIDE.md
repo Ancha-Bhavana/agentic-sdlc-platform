@@ -108,3 +108,23 @@ Stop containers without deleting evidence volumes:
 ```powershell
 docker compose down
 ```
+
+## Production controls
+
+Use `compose.production.yaml` as an overlay after providing the external Docker
+secrets and OIDC/TLS environment variables described in
+`docs/PRODUCTION-DEPLOYMENT.md`:
+
+```powershell
+docker compose -f compose.yaml -f compose.production.yaml config
+docker compose -f compose.yaml -f compose.production.yaml up --build -d
+```
+
+Set `SHORTENER_REGION=eu` and create a URL; its code must begin with `eu`.
+Submissions targeting localhost, private IP literals, configured blocked hosts,
+URLs with user information, or non-HTTP schemes must return a problem response.
+Temporarily set `SHORTENER_RATE_LIMIT=2` and confirm that a third request from
+one client within the configured window returns HTTP `429` with `Retry-After`.
+Retention cleanup removes expired redirect events before inactive or expired
+short URLs according to `SHORTENER_EVENT_RETENTION` and
+`SHORTENER_URL_RETENTION`.

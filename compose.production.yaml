@@ -1,0 +1,39 @@
+services:
+  agentic-platform:
+    environment:
+      AGENTIC_SDLC_SECURITY_MODE: oidc
+      AGENTIC_SDLC_OIDC_ISSUER: ${AGENTIC_SDLC_OIDC_ISSUER:?OIDC issuer required}
+      AGENTIC_SDLC_OIDC_AUDIENCE: ${AGENTIC_SDLC_OIDC_AUDIENCE:-agentic-sdlc-api}
+      AGENTIC_SDLC_OIDC_JWK_SET_URI: ${AGENTIC_SDLC_OIDC_JWK_SET_URI:-}
+      AGENTIC_SDLC_TLS_ENABLED: "true"
+      AGENTIC_SDLC_TLS_KEY_STORE: file:/run/secrets/agentic_sdlc_tls_keystore
+    secrets: [agentic_sdlc_database_password, agentic_sdlc_tls_keystore, agentic_sdlc_tls_key_store_password]
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-check-certificate -q -O - https://localhost:8080/actuator/health/readiness | grep -q '\"status\":\"UP\"'"]
+  agentic-platform-secondary:
+    environment:
+      AGENTIC_SDLC_SECURITY_MODE: oidc
+      AGENTIC_SDLC_OIDC_ISSUER: ${AGENTIC_SDLC_OIDC_ISSUER:?OIDC issuer required}
+      AGENTIC_SDLC_OIDC_AUDIENCE: ${AGENTIC_SDLC_OIDC_AUDIENCE:-agentic-sdlc-api}
+      AGENTIC_SDLC_OIDC_JWK_SET_URI: ${AGENTIC_SDLC_OIDC_JWK_SET_URI:-}
+      AGENTIC_SDLC_TLS_ENABLED: "true"
+      AGENTIC_SDLC_TLS_KEY_STORE: file:/run/secrets/agentic_sdlc_tls_keystore
+    secrets: [agentic_sdlc_database_password, agentic_sdlc_tls_keystore, agentic_sdlc_tls_key_store_password]
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-check-certificate -q -O - https://localhost:8080/actuator/health/readiness | grep -q '\"status\":\"UP\"'"]
+  url-shortener:
+    environment:
+      SHORTENER_TLS_ENABLED: "true"
+      SHORTENER_TLS_KEY_STORE: file:/run/secrets/shortener_tls_keystore
+      SHORTENER_REGION: ${SHORTENER_REGION:?Deployment region required}
+    secrets: [shortener_database_password, shortener_tls_keystore, shortener_tls_key_store_password]
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-check-certificate -q -O - https://localhost:8081/actuator/health/readiness | grep -q '\"status\":\"UP\"'"]
+
+secrets:
+  agentic_sdlc_database_password: { external: true }
+  agentic_sdlc_tls_keystore: { external: true }
+  agentic_sdlc_tls_key_store_password: { external: true }
+  shortener_database_password: { external: true }
+  shortener_tls_keystore: { external: true }
+  shortener_tls_key_store_password: { external: true }

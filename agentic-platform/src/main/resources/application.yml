@@ -1,10 +1,19 @@
 spring:
+  config:
+    import: optional:configtree:${AGENTIC_SDLC_SECRETS_PATH:/run/secrets/}
   application:
     name: agentic-sdlc-platform
   datasource:
     url: ${AGENTIC_SDLC_DATABASE_URL:jdbc:postgresql://localhost:5432/agentic_sdlc}
     username: ${AGENTIC_SDLC_DATABASE_USERNAME:agentic_sdlc}
-    password: ${AGENTIC_SDLC_DATABASE_PASSWORD:}
+    password: ${agentic_sdlc_database_password:${AGENTIC_SDLC_DATABASE_PASSWORD:}}
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${AGENTIC_SDLC_OIDC_ISSUER:}
+          audiences: ${AGENTIC_SDLC_OIDC_AUDIENCE:agentic-sdlc-api}
+          jwk-set-uri: ${AGENTIC_SDLC_OIDC_JWK_SET_URI:}
   jpa:
     open-in-view: false
     hibernate:
@@ -21,9 +30,17 @@ agentic-sdlc:
     model: ${AGENTIC_SDLC_LLM_MODEL:gpt-5.4}
     api-key: ${OPENAI_API_KEY:}
   security:
-    operator-password: ${AGENTIC_SDLC_OPERATOR_PASSWORD:operator-local}
-    approver-password: ${AGENTIC_SDLC_APPROVER_PASSWORD:approver-local}
-    release-password: ${AGENTIC_SDLC_RELEASE_PASSWORD:release-local}
+    mode: ${AGENTIC_SDLC_SECURITY_MODE:local}
+    operator-password: ${agentic_sdlc_operator_password:${AGENTIC_SDLC_OPERATOR_PASSWORD:operator-local}}
+    approver-password: ${agentic_sdlc_approver_password:${AGENTIC_SDLC_APPROVER_PASSWORD:approver-local}}
+    release-password: ${agentic_sdlc_release_password:${AGENTIC_SDLC_RELEASE_PASSWORD:release-local}}
+server:
+  forward-headers-strategy: framework
+  ssl:
+    enabled: ${AGENTIC_SDLC_TLS_ENABLED:false}
+    key-store: ${AGENTIC_SDLC_TLS_KEY_STORE:}
+    key-store-password: ${agentic_sdlc_tls_key_store_password:${AGENTIC_SDLC_TLS_KEY_STORE_PASSWORD:}}
+    key-store-type: ${AGENTIC_SDLC_TLS_KEY_STORE_TYPE:PKCS12}
   repository:
     approved-root: ${AGENTIC_SDLC_APPROVED_REPOSITORY_ROOT:.}
   coordination:

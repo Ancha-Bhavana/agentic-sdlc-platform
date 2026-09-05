@@ -44,8 +44,8 @@ Actuator publishes health probes and Prometheus metrics. Domain meters report su
 
 ## Trust boundaries and limitations
 
-- HTTP Basic with environment-configured local users is appropriate for the prototype. Production deployment should use enterprise identity, secret management, TLS termination, and database-backed authorization.
+- Local mode uses environment-configured Basic users for deterministic evaluation. Production mode validates OIDC JWT issuer, audience, time bounds, and signature, then maps identity-provider roles into platform authorization. TLS and config-tree secret mounts are supported by both services.
 - Active Java threads are process-local, while ownership and progress are database-backed. Recovery occurs after lease expiry, so failover latency is bounded by the configured lease and recovery intervals.
 - Every deterministic catalog scenario creates an idempotent Java source mutation in its isolated revision workspace and persists its manifest hash and bounded diff. The richer `LifecycleExecution` remains the path for model-proposed patching, Maven validation, repair, and rollback.
 - The URL service stores one redirect event per request for audit-friendly daily analytics. High-volume production use should batch or stream events and use partitioned aggregates.
-- Rate limiting, abuse detection, custom aliases, and multi-region code allocation are outside this prototype.
+- URL controls include region-namespaced allocation, private-target and deny-list rejection, per-instance rate limiting, and scheduled retention. Production ingress and egress policy remain necessary for global edge limits and DNS-rebinding protection.

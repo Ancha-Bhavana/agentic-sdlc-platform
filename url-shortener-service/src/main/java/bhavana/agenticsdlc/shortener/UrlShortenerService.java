@@ -14,13 +14,15 @@ public class UrlShortenerService {
     private final RedirectEventRepository events;
     private final CodeGenerator codes;
     private final Clock clock;
-    UrlShortenerService(ShortUrlRepository urls, RedirectEventRepository events, CodeGenerator codes, Clock clock) {
-        this.urls = urls; this.events = events; this.codes = codes; this.clock = clock;
+    private final TargetUrlPolicy targets;
+    UrlShortenerService(ShortUrlRepository urls, RedirectEventRepository events, CodeGenerator codes, Clock clock,
+                        TargetUrlPolicy targets) {
+        this.urls = urls; this.events = events; this.codes = codes; this.clock = clock; this.targets = targets;
     }
 
     @Transactional
     public ShortUrl create(String targetUrl, Instant expiresAt) {
-        URI uri = validateTarget(targetUrl);
+        URI uri = targets.validate(targetUrl);
         Instant now = clock.instant();
         if (expiresAt != null && !expiresAt.isAfter(now)) throw new IllegalArgumentException("Expiration must be in the future");
         for (int attempt = 0; attempt < MAX_CODE_ATTEMPTS; attempt++) {
@@ -60,17 +62,6 @@ public class UrlShortenerService {
         ShortUrl url = require(code);
         if (!url.availableAt(clock.instant())) throw new ShortUrlNotFoundException(code);
         return url;
-    }
-
-    private URI validateTarget(String value) {
-        try {
-            URI uri = URI.create(value);
-            if (!("http".equalsIgnoreCase(uri.getScheme()) || "https".equalsIgnoreCase(uri.getScheme()))
-                    || uri.getHost() == null) throw new IllegalArgumentException("Target URL must be an absolute HTTP(S) URL");
-            return uri;
-        } catch (IllegalArgumentException invalid) {
-            throw new IllegalArgumentException("Target URL must be an absolute HTTP(S) URL");
-        }
     }
 
     public record Analytics(long totalRedirects, LocalDate date, long redirectsOnDate) { }

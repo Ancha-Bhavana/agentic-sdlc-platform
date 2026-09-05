@@ -13,6 +13,12 @@ import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.security.oauth2.server.resource.authentication.*;
+import org.springframework.core.convert.converter.Converter;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.jwt.Jwt;
+import java.util.*;
 
 @Configuration
 @EnableWebSecurity
@@ -23,7 +29,8 @@ public class SecurityConfiguration {
         return PasswordEncoderFactories.createDelegatingPasswordEncoder();
     }
 
-    @Bean UserDetailsService users(SecurityProperties properties, PasswordEncoder encoder) {
+    @Bean @ConditionalOnProperty(name="agentic-sdlc.security.mode", havingValue="local", matchIfMissing=true)
+    UserDetailsService users(SecurityProperties properties, PasswordEncoder encoder) {
         requirePasswords(properties);
         return new InMemoryUserDetailsManager(
                 User.withUsername("operator").password(encoder.encode(properties.operatorPassword())).roles("OPERATOR").build(),
@@ -31,8 +38,8 @@ public class SecurityConfiguration {
                 User.withUsername("release-approver").password(encoder.encode(properties.releasePassword())).roles("RELEASE_APPROVER").build());
     }
 
-    @Bean SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        return http.csrf(csrf -> csrf.disable())
+    @Bean SecurityFilterChain securityFilterChain(HttpSecurity http, SecurityProperties properties) throws Exception {
+        http.csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/actuator/health/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
@@ -41,11 +48,28 @@ public class SecurityConfiguration {
                         .authenticationEntryPoint((request, response, failure) ->
                                 writeProblem(response, 401, "Authentication required"))
                         .accessDeniedHandler((request, response, failure) ->
-                                writeProblem(response, 403, "Insufficient role")))
-                .httpBasic(Customizer.withDefaults()).build();
+                                writeProblem(response, 403, "Insufficient role")));
+        if ("oidc".equals(properties.mode())) {
+            http.oauth2ResourceServer(oauth -> oauth.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtRoles())));
+        } else if ("local".equals(properties.mode())) {
+            http.httpBasic(Customizer.withDefaults());
+        } else throw new IllegalStateException("Security mode must be local or oidc");
+        return http.build();
+    }
+
+    Converter<Jwt, ? extends org.springframework.security.authentication.AbstractAuthenticationToken> jwtRoles() {
+        return jwt -> {
+            Set<SimpleGrantedAuthority> authorities = new HashSet<>();
+            Object roles = jwt.getClaims().get("roles");
+            if (roles instanceof Collection<?> values) values.stream().map(Object::toString)
+                    .map(value -> value.startsWith("ROLE_") ? value : "ROLE_" + value.toUpperCase(Locale.ROOT))
+                    .map(SimpleGrantedAuthority::new).forEach(authorities::add);
+            return new JwtAuthenticationToken(jwt, authorities, jwt.getSubject());
+        };
     }
 
     private void requirePasswords(SecurityProperties properties) {
+        if (!"local".equals(properties.mode())) return;
         if (properties.operatorPassword() == null || properties.operatorPassword().isBlank()
                 || properties.approverPassword() == null || properties.approverPassword().isBlank()
                 || properties.releasePassword() == null || properties.releasePassword().isBlank())

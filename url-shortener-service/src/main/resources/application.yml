@@ -1,10 +1,12 @@
 spring:
+  config:
+    import: optional:configtree:${SHORTENER_SECRETS_PATH:/run/secrets/}
   application:
     name: url-shortener-service
   datasource:
     url: ${SHORTENER_DATABASE_URL:jdbc:postgresql://localhost:5432/url_shortener}
     username: ${SHORTENER_DATABASE_USERNAME:url_shortener}
-    password: ${SHORTENER_DATABASE_PASSWORD:}
+    password: ${shortener_database_password:${SHORTENER_DATABASE_PASSWORD:}}
   jpa:
     open-in-view: false
     hibernate:
@@ -12,6 +14,20 @@ spring:
 server:
   port: ${SHORTENER_SERVER_PORT:8081}
   shutdown: graceful
+  forward-headers-strategy: framework
+  ssl:
+    enabled: ${SHORTENER_TLS_ENABLED:false}
+    key-store: ${SHORTENER_TLS_KEY_STORE:}
+    key-store-password: ${shortener_tls_key_store_password:${SHORTENER_TLS_KEY_STORE_PASSWORD:}}
+    key-store-type: ${SHORTENER_TLS_KEY_STORE_TYPE:PKCS12}
+shortener:
+  region: ${SHORTENER_REGION:us}
+  rate-limit: ${SHORTENER_RATE_LIMIT:120}
+  rate-window: ${SHORTENER_RATE_WINDOW:1m}
+  blocked-hosts: ${SHORTENER_BLOCKED_HOSTS:}
+  event-retention: ${SHORTENER_EVENT_RETENTION:90d}
+  url-retention: ${SHORTENER_URL_RETENTION:365d}
+  cleanup-interval: ${SHORTENER_CLEANUP_INTERVAL:24h}
 management:
   endpoints.web.exposure.include: health,info,prometheus
   endpoint.health.probes.enabled: true

@@ -33,6 +33,9 @@ class UrlShortenerServiceTest {
 
     @Test void rejectsUnsafeTargetsAndExpiredLinks() {
         assertThatIllegalArgumentException().isThrownBy(() -> service.create("file:///etc/passwd", null));
+        assertThatIllegalArgumentException().isThrownBy(() -> service.create("http://127.0.0.1/admin", null));
+        assertThatIllegalArgumentException().isThrownBy(() -> service.create("https://localhost/admin", null));
+        assertThatIllegalArgumentException().isThrownBy(() -> service.create("https://user@example.com/private", null));
         assertThatIllegalArgumentException().isThrownBy(() -> service.create("https://example.com", Instant.EPOCH));
     }
 

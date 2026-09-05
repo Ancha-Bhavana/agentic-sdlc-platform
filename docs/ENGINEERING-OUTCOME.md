@@ -16,6 +16,7 @@ The repository contains a governed agentic SDLC platform and a working URL-short
 - Runnable URL create, redirect, expiry, deactivate, inspection, and analytics APIs
 - Greenfield, brownfield repair, and ambiguous clarification assessment scenarios
 - Prometheus domain metrics, health probes, non-root containers, Docker Compose, CI, and automated evidence upload
+- OIDC/JWT production identity, TLS and config-tree secrets, URL abuse controls, regional allocation, and retention cleanup
 
 ## Key decisions
 
@@ -37,7 +38,7 @@ Principal risks are untrusted generated changes, credential leakage, stale appro
 
 ## Known limitations
 
-Rate limiting, abuse prevention, multi-region URL allocation, retention policies, and production identity integration remain checkpoint 12 work. Recovery waits for the task lease to expire; deliberately paused clarification and approval workflows continue waiting for their required human decision. Container builds require network access for base images and uncached Maven artifacts. A real OpenAI evaluation requires a reviewer-provided API key and may incur cost.
+Application rate limiting is per instance, so production ingress should enforce the global client budget. DNS and network egress policy must complement target checks to prevent DNS rebinding. Identity-provider provisioning, certificate issuance, and external secret creation are deployment responsibilities. Recovery waits for the task lease to expire; deliberately paused clarification and approval workflows continue waiting for their required human decision. Container builds require network access for base images and uncached Maven artifacts. A real OpenAI evaluation requires a reviewer-provided API key and may incur cost.
 
 ## Acceptance decision
 

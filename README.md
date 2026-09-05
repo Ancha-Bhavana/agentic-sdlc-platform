@@ -12,7 +12,7 @@ A governed agentic software-engineering platform demonstrated through a producti
 - Java 21
 - Docker Desktop for PostgreSQL integration and container scenarios
 
-Detailed review material: [Architecture](docs/ARCHITECTURE.md), [Reviewer Guide](docs/REVIEWER-GUIDE.md), and [Engineering Outcome](docs/ENGINEERING-OUTCOME.md).
+Detailed review material: [Architecture](docs/ARCHITECTURE.md), [Reviewer Guide](docs/REVIEWER-GUIDE.md), [Engineering Outcome](docs/ENGINEERING-OUTCOME.md), and [Production Deployment](docs/PRODUCTION-DEPLOYMENT.md).
 
 ## Build
 
